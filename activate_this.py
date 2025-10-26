@@ -6,7 +6,6 @@ import time
 import logging
 import os
 import uuid
-import io
 
 # Настройка логирования
 logging.basicConfig(level=logging.INFO)
@@ -67,15 +66,14 @@ def generate_image(prompt):
         filepath = download_image(image_url, filename)
 
         if filepath:
-            server_url = f"/image/{image_id}"
+            server_url = f"https://apiai.darkheavens.ru/image/{image_id}"
 
             logger.info(f"Image saved to server: {filename}")
 
             return jsonify({
                 'status': 'success',
                 'image_id': image_id,
-                'image_url': f"https://apiai.darkheavens.ru{server_url}",
-                'download_url': f"https://apiai.darkheavens.ru/v1/download/{image_id}",
+                'image_url': server_url,
                 'original_prompt': decoded,
                 'english_prompt': english_prompt,
                 'processing_time': f"{time.time() - start_time:.2f}s"
@@ -96,24 +94,6 @@ def get_image(image_id):
 
         if os.path.exists(filepath):
             return send_file(filepath, mimetype='image/jpeg')
-        else:
-            return jsonify({'status': 'error', 'message': 'Image not found'}), 404
-    except Exception as e:
-        return jsonify({'status': 'error', 'message': str(e)}), 500
-
-# Скачивание изображения как файл
-@app.route('/v1/download/<image_id>')
-def download_image_file(image_id):
-    try:
-        filename = f"{image_id}.jpg"
-        filepath = os.path.join(IMAGES_DIR, filename)
-
-        if os.path.exists(filepath):
-            return send_file(
-                filepath,
-                as_attachment=True,
-                download_name=f"ai_image_{image_id}.jpg"
-            )
         else:
             return jsonify({'status': 'error', 'message': 'Image not found'}), 404
     except Exception as e:
@@ -225,7 +205,6 @@ def home():
         <li><b>Текст:</b> GET /v1/text/твой запрос</li>
         <li><b>Изображение (сохраняет на сервер):</b> GET /v1/image/описание картинки</li>
         <li><b>Просмотр изображения:</b> GET /image/ID_изображения</li>
-        <li><b>Скачать изображение:</b> GET /v1/download/ID_изображения</li>
         <li><b>Анализ изображения:</b> POST /v1/uimg/ с file или url</li>
         <li><b>Код:</b> GET /v1/code/описание кода</li>
     </ul>
