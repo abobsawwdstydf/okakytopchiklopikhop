@@ -169,4 +169,4 @@ def home():
     """
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=0, debug=True, threaded=True)
+    app.run(host='0.0.0.0', port=71203, debug=True, threaded=True)
