@@ -74,8 +74,8 @@ def generate_image(prompt):
             return jsonify({
                 'status': 'success',
                 'image_id': image_id,
-                'image_url': f"http://localhost:5000{server_url}",
-                'download_url': f"http://localhost:5000/v1/download/{image_id}",
+                'image_url': f"https://apiai.darkheavens.ru{server_url}",
+                'download_url': f"https://apiai.darkheavens.ru/v1/download/{image_id}",
                 'original_prompt': decoded,
                 'english_prompt': english_prompt,
                 'processing_time': f"{time.time() - start_time:.2f}s"
