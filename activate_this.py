@@ -226,8 +226,8 @@ def server_status():
 def home():
     """Displays a simple homepage with API documentation."""
     return """
-    <h1>AI API Server (Powered by io.net)</h1>
-    <p><b>Note:</b> Image generation and analysis are not currently available via io.net.</p>
+    <h1>AI API Server</h1>
+    <p><b>Note:</b> Image generation and analysis are not currently available</p>
     <h3>Available Endpoints:</h3>
     <ul>
         <li><b>Text Generation:</b> GET /v1/text/your_text_request</li>
