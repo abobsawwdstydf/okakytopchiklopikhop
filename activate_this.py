@@ -1,5 +1,4 @@
 from flask import Flask, jsonify, request, send_file
-from g4f.client import Client
 import urllib.parse
 import requests
 import time
@@ -7,30 +6,99 @@ import logging
 import os
 import uuid
 
-# Настройка логирования
+# ======================
+# Configuration
+# ======================
+app = Flask(__name__)
+
+# Setup logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-app = Flask(__name__)
-client = Client()
-
-# Папки для файлов
+# Folders for files
 IMAGES_DIR = "images"
 os.makedirs(IMAGES_DIR, exist_ok=True)
 
+# IO.net API Configuration
+IO_NET_API_BASE = "https://api.intelligence.io.solutions/api/v1"
+# You must set your IO.net token here
+IO_NET_API_TOKEN = "io-v2-eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJvd25lciI6IjIwMzE2MzU5LWZiN2MtNDc4YS04YzczLTU2MmNlZGM4YzRkYSIsImV4cCI6NDkxNTQxNTIwMX0.Tm8o-2RDU49zWs0SxQM3xhthv2nYaqepjHgNjWbuBPIE_mSq4xrA8nOSn2ym4x8pfMd-ezvwny8NM9Mwp7xDFA"
+
+# ======================
+# Model Configuration & Fallback Logic
+# ======================
+
+# List of models for text/code generation, in order of preference.
+TEXT_MODELS = [
+    "meta-llama/Llama-3.3-70B-Instruct",
+    "Qwen/QwQ-32B-Preview",
+    "microsoft/WizardLM-2-8x22B",
+    "google/gemma-2-27b-it",
+    "mistralai/Mixtral-8x22B-Instruct-v0.1"
+]
+
+def make_io_net_request(messages, model_index=0):
+    """
+    Makes a request to the IO.net chat completions API.
+    Implements the fallback logic if a model fails.
+
+    Args:
+        messages: List of message dictionaries.
+        model_index: Index of the model to try from TEXT_MODELS.
+
+    Returns:
+        tuple: (success_status, response_text_or_error_message)
+    """
+    if model_index >= len(TEXT_MODELS):
+        return False, "All available models failed to process the request."
+
+    current_model = TEXT_MODELS[model_index]
+    url = f"{IO_NET_API_BASE}/chat/completions"
+    headers = {
+        "Content-Type": "application/json",
+        "Authorization": f"Bearer {IO_NET_API_TOKEN}"
+    }
+    data = {
+        "model": current_model,
+        "messages": messages,
+        "temperature": 0.7,
+        "max_tokens": 4096  # Adjust as needed
+    }
+
+    try:
+        logger.info(f"Attempting request with model: {current_model}")
+        response = requests.post(url, headers=headers, json=data, timeout=120)
+        response.raise_for_status()  # Raises an HTTPError for bad status codes
+        result = response.json()
+        generated_text = result['choices'][0]['message']['content']
+        return True, generated_text
+
+    except requests.exceptions.RequestException as e:
+        logger.error(f"Error with model '{current_model}': {e}")
+        # Recursively try the next model
+        return make_io_net_request(messages, model_index + 1)
+    except (KeyError, IndexError) as e:
+        logger.error(f"Unexpected response format from model '{current_model}': {e}")
+        return make_io_net_request(messages, model_index + 1)
+
+# ======================
+# Helper Functions
+# ======================
+
 def translate_to_english(text):
-    """Переводит текст на английский"""
+    """Translates text to English using MyMemory Translation API."""
     try:
         url = "https://api.mymemory.translated.net/get"
         params = {'q': text, 'langpair': 'ru|en'}
         response = requests.get(url, params=params, timeout=10)
         translation = response.json()
         return translation['responseData']['translatedText'] if translation['responseStatus'] == 200 else text
-    except:
+    except Exception as e:
+        logger.error(f"Translation error: {e}")
         return text
 
 def download_image(url, filename):
-    """Скачивает изображение и сохраняет на сервер"""
+    """Downloads an image and saves it to the server."""
     try:
         response = requests.get(url, timeout=30)
         if response.status_code == 200:
@@ -43,55 +111,30 @@ def download_image(url, filename):
         logger.error(f"Error downloading image: {e}")
         return None
 
-# Генерация изображения с сохранением на сервер
+# ======================
+# Flask Routes
+# ======================
+
 @app.route('/v1/image/<path:prompt>')
 def generate_image(prompt):
+    """
+    NOTE: This endpoint remains as a stub.
+    io.net does not provide a native image generation API.
+    You would need to integrate a separate service like Stability AI or DALL-E.
+    """
     start_time = time.time()
+    return jsonify({
+        'status': 'error',
+        'message': 'Image generation via io.net is not available. Consider integrating a dedicated image generation service (e.g., Stable Diffusion API, DALL-E).',
+        'processing_time': f"{time.time() - start_time:.2f}s"
+    }), 501  # 501 Not Implemented
 
-    try:
-        decoded = urllib.parse.unquote(prompt)
-        english_prompt = translate_to_english(decoded)
-
-        # Генерируем изображение
-        response = client.images.generate(
-            model="flux",
-            prompt=english_prompt,
-            response_format="url"
-        )
-        image_url = response.data[0].url
-
-        # Скачиваем на сервер
-        image_id = str(uuid.uuid4())[:12]
-        filename = f"{image_id}.jpg"
-        filepath = download_image(image_url, filename)
-
-        if filepath:
-            server_url = f"https://apiai.darkheavens.ru/image/{image_id}"
-
-            logger.info(f"Image saved to server: {filename}")
-
-            return jsonify({
-                'status': 'success',
-                'image_id': image_id,
-                'image_url': server_url,
-                'original_prompt': decoded,
-                'english_prompt': english_prompt,
-                'processing_time': f"{time.time() - start_time:.2f}s"
-            })
-        else:
-            return jsonify({'status': 'error', 'message': 'Failed to download image'}), 500
-
-    except Exception as e:
-        logger.error(f"Error in generate_image: {e}")
-        return jsonify({'status': 'error', 'message': str(e)}), 500
-
-# Просмотр изображения по ID
 @app.route('/image/<image_id>')
 def get_image(image_id):
+    """Serves a previously generated image by its ID."""
     try:
         filename = f"{image_id}.jpg"
         filepath = os.path.join(IMAGES_DIR, filename)
-
         if os.path.exists(filepath):
             return send_file(filepath, mimetype='image/jpeg')
         else:
@@ -99,114 +142,102 @@ def get_image(image_id):
     except Exception as e:
         return jsonify({'status': 'error', 'message': str(e)}), 500
 
-# Генерация текста
 @app.route('/v1/text/<path:prompt>')
 def generate_text(prompt):
+    """Generates text using the io.net API with model fallback."""
     start_time = time.time()
-
     try:
-        decoded = urllib.parse.unquote(prompt)
+        decoded_prompt = urllib.parse.unquote(prompt)
+        messages = [{"role": "user", "content": decoded_prompt}]
 
-        response = client.chat.completions.create(
-            model="gpt-4",
-            messages=[{"role": "user", "content": decoded}],
-        )
+        success, result = make_io_net_request(messages)
 
-        answer = response.choices[0].message.content
-
-        return jsonify({
-            'status': 'success',
-            'response': answer,
-            'processing_time': f"{time.time() - start_time:.2f}s"
-        })
+        if success:
+            return jsonify({
+                'status': 'success',
+                'response': result,
+                'processing_time': f"{time.time() - start_time:.2f}s"
+            })
+        else:
+            return jsonify({
+                'status': 'error',
+                'message': result,  # This contains the final error after all retries
+                'processing_time': f"{time.time() - start_time:.2f}s"
+            }), 500
 
     except Exception as e:
+        logger.error(f"Unexpected error in generate_text: {e}")
         return jsonify({'status': 'error', 'message': str(e)}), 500
 
-# Анализ изображения
 @app.route('/v1/uimg/', methods=['POST'])
 def analyze_image():
+    """
+    NOTE: This endpoint remains as a stub.
+    io.net does not provide a native image analysis API.
+    You would need to integrate a separate service like Azure Computer Vision or OpenAI's GPT-4V.
+    """
     start_time = time.time()
+    return jsonify({
+        'status': 'error',
+        'message': 'Image analysis via io.net is not available. Consider integrating a dedicated computer vision service.',
+        'processing_time': f"{time.time() - start_time:.2f}s"
+    }), 501  # 501 Not Implemented
 
-    try:
-        if 'file' in request.files:
-            file = request.files['file']
-            image_data = file.read()
-        elif 'url' in request.json:
-            image_url = request.json['url']
-            response = requests.get(image_url, timeout=10)
-            image_data = response.content
-        else:
-            return jsonify({'status': 'error', 'message': 'No file or URL provided'}), 400
-
-        response = client.chat.completions.create(
-            model="gpt-4",
-            messages=[{
-                "role": "user",
-                "content": "Детально опиши что изображено на этой картинке",
-                "images": [image_data]
-            }],
-        )
-
-        description = response.choices[0].message.content
-
-        return jsonify({
-            'status': 'success',
-            'description': description,
-            'processing_time': f"{time.time() - start_time:.2f}s"
-        })
-
-    except Exception as e:
-        return jsonify({'status': 'error', 'message': str(e)}), 500
-
-# Генерация кода
 @app.route('/v1/code/<path:prompt>')
 def generate_code(prompt):
+    """Generates code using the io.net API with model fallback."""
     start_time = time.time()
-
     try:
-        decoded = urllib.parse.unquote(prompt)
+        decoded_prompt = urllib.parse.unquote(prompt)
+        # Specific instruction for code generation
+        code_prompt = f"{decoded_prompt}. Provide ONLY the code without explanations. If libraries are used, include a requirements.txt file with those libraries."
+        messages = [{"role": "user", "content": code_prompt}]
 
-        response = client.chat.completions.create(
-            model="gpt-4",
-            messages=[{
-                "role": "user",
-                "content": f"{decoded}. В ответе должен быть ТОЛЬКО код без пояснений. Если используются библиотеки, добавь файл requirements.txt с этими библиотеками."
-            }],
-        )
+        success, result = make_io_net_request(messages)
 
-        code = response.choices[0].message.content
-
-        return jsonify({
-            'status': 'success',
-            'code': code,
-            'processing_time': f"{time.time() - start_time:.2f}s"
-        })
+        if success:
+            return jsonify({
+                'status': 'success',
+                'code': result,
+                'processing_time': f"{time.time() - start_time:.2f}s"
+            })
+        else:
+            return jsonify({
+                'status': 'error',
+                'message': result,
+                'processing_time': f"{time.time() - start_time:.2f}s"
+            }), 500
 
     except Exception as e:
+        logger.error(f"Unexpected error in generate_code: {e}")
         return jsonify({'status': 'error', 'message': str(e)}), 500
 
-# Статус сервера
 @app.route('/v1/status/')
 def server_status():
+    """Checks the status of the server."""
     image_count = len([f for f in os.listdir(IMAGES_DIR) if f.endswith('.jpg')])
     return jsonify({
         'status': 'running',
-        'images_stored': image_count,
-        'performance': 'high'
+        'service': 'io.net AI Server',
+        'images_stored': image_count
     })
 
 @app.route('/')
 def home():
+    """Displays a simple homepage with API documentation."""
     return """
-    <h1>AI API Server</h1>
-    <h3>Доступные endpoints:</h3>
+    <h1>AI API Server (Powered by io.net)</h1>
+    <p><b>Note:</b> Image generation and analysis are not currently available via io.net.</p>
+    <h3>Available Endpoints:</h3>
     <ul>
-        <li><b>Текст:</b> GET /v1/text/твой запрос</li>
-        <li><b>Изображение (сохраняет на сервер):</b> GET /v1/image/описание картинки</li>
-        <li><b>Просмотр изображения:</b> GET /image/ID_изображения</li>
-        <li><b>Анализ изображения:</b> POST /v1/uimg/ с file или url</li>
-        <li><b>Код:</b> GET /v1/code/описание кода</li>
+        <li><b>Text Generation:</b> GET /v1/text/your_text_request</li>
+        <li><b>Code Generation:</b> GET /v1/code/your_code_request</li>
+        <li><b>Server Status:</b> GET /v1/status/</li>
+    </ul>
+    <h3>Unavailable Endpoints (Require Additional Services):</h3>
+    <ul>
+        <li><s>Image Generation</s></li>
+        <li><s>Image Analysis</s></li>
     </ul>
     """
 
