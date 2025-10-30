@@ -22,75 +22,87 @@ IMAGES_DIR = "images"
 os.makedirs(IMAGES_DIR, exist_ok=True)
 
 # API Configuration
-IO_NET_API_BASE = "https://api.intelligence.io.solutions/api/v1"
-IO_NET_API_TOKEN = "io-v2-eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJvd25lciI6IjIwMzE2MzU5LWZiN2MtNDc4YS04YzczLTU2MmNlZGM4YzRkYSIsImV4cCI6NDkxNTQxNTIwMX0.Tm8o-2RDU49zWs0SxQM3xhthv2nYaqepjHgNjWbuBPIE_mSq4xrA8nOSn2ym4x8pfMd-ezvwny8NM9Mwp7xDFA"
-
-# Gemini API Configuration
-GEMINI_API_KEY = "AIzaSyDbIzvvmlN9no8DwkhZAcpyfgDHaEVtlrQ"  # Замените на ваш ключ Gemini
-GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro-latest:generateContent"
+POLLINATIONS_TEXT_URL = "https://text.pollinations.ai/"
 
 # ======================
-# Model Configuration & Fallback Logic
+# AI Service Selection
 # ======================
 
-TEXT_MODELS = [
-    "meta-llama/Llama-3.3-70B-Instruct",
-    "Qwen/QwQ-32B-Preview", 
-    "microsoft/WizardLM-2-8x22B",
-    "google/gemma-2-27b-it",
-    "mistralai/Mixtral-8x22B-Instruct-v0.1"
-]
+# Choose your image analysis service: "gemini" or "huggingface"
+IMAGE_ANALYSIS_SERVICE = "gemini"  # Change to "huggingface" if preferred
 
-def make_io_net_request(messages, model_index=0):
-    """IO.net запрос с fallback моделями"""
-    if model_index >= len(TEXT_MODELS):
-        return False, "Все модели временно недоступны"
+# Service Configuration
+if IMAGE_ANALYSIS_SERVICE == "gemini":
+    # Gemini API Configuration
+    GEMINI_API_KEY = "AIzaSyDbIzvvmlN9no8DwkhZAcpyfgDHaEVtlrQ"  # Replace with your actual key
+    GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro-latest:generateContent"
+elif IMAGE_ANALYSIS_SERVICE == "huggingface":
+    # Hugging Face Inference API Configuration
+    HF_API_KEY = "YOUR_HUGGING_FACE_API_KEY_HERE"  # Replace with your actual key
+    HF_API_URL = "https://api-inference.huggingface.co/models/Salesforce/blip-image-captioning-large"
 
-    current_model = TEXT_MODELS[model_index]
-    url = f"{IO_NET_API_BASE}/chat/completions"
-    headers = {
-        "Content-Type": "application/json",
-        "Authorization": f"Bearer {IO_NET_API_TOKEN}"
-    }
-    data = {
-        "model": current_model,
-        "messages": messages,
-        "temperature": 0.7,
-        "max_tokens": 4096
-    }
+# ======================
+# Image Generation with g4f
+# ======================
 
+from g4f.client import Client
+
+def generate_image_with_g4f(prompt):
+    """Генерация изображения через g4f с моделью flux"""
     try:
-        logger.info(f"Attempting request with model: {current_model}")
-        response = requests.post(url, headers=headers, json=data, timeout=120)
+        client = Client()
+        response = client.images.generate(
+            model="flux",
+            prompt=prompt,
+            response_format="url"
+        )
+        return True, response.data[0].url
+    except Exception as e:
+        logger.error(f"g4f image generation error: {e}")
+        return False, str(e)
+
+# ======================
+# Text Generation with Pollinations.ai
+# ======================
+
+def generate_text_with_pollinations(prompt):
+    """Генерация текста через Pollinations.ai"""
+    try:
+        # URL encode the prompt
+        encoded_prompt = urllib.parse.quote(prompt)
+        url = f"{POLLINATIONS_TEXT_URL}{encoded_prompt}"
+        
+        logger.info(f"Making request to Pollinations.ai: {url}")
+        response = requests.get(url, timeout=60)
         response.raise_for_status()
-        result = response.json()
-        generated_text = result['choices'][0]['message']['content']
+        
+        # Pollinations.ai returns plain text, not JSON
+        generated_text = response.text.strip()
         return True, generated_text
-
+        
     except requests.exceptions.RequestException as e:
-        logger.error(f"Error with model '{current_model}': {e}")
-        return make_io_net_request(messages, model_index + 1)
-    except (KeyError, IndexError) as e:
-        logger.error(f"Unexpected response format from model '{current_model}': {e}")
-        return make_io_net_request(messages, model_index + 1)
+        logger.error(f"Pollinations.ai API error: {e}")
+        return False, f"Ошибка соединения с сервисом: {e}"
+    except Exception as e:
+        logger.error(f"Unexpected error in text generation: {e}")
+        return False, str(e)
 
-def generate_with_gemini(prompt, image_data=None):
-    """Генерация текста или анализ изображений через Gemini"""
-    url = f"{GEMINI_API_URL}?key={GEMINI_API_KEY}"
-    
-    contents = []
-    
-    if image_data:
-        # Анализ изображения
-        if isinstance(image_data, bytes):
-            image_base64 = base64.b64encode(image_data).decode('utf-8')
-        else:
-            image_base64 = image_data
-            
+# ======================
+# Image Analysis Services
+# ======================
+
+def analyze_with_gemini(image_data):
+    """Анализ изображения через Gemini"""
+    try:
+        url = f"{GEMINI_API_URL}?key={GEMINI_API_KEY}"
+        
+        # Convert image to base64
+        image_base64 = base64.b64encode(image_data).decode('utf-8')
+        
         contents = [
             {
                 "parts": [
-                    {"text": prompt},
+                    {"text": "Детально опиши что изображено на этой картинке. Опиши цвета, объекты, стиль, настроение и возможный контекст."},
                     {
                         "inline_data": {
                             "mime_type": "image/jpeg",
@@ -100,23 +112,15 @@ def generate_with_gemini(prompt, image_data=None):
                 ]
             }
         ]
-    else:
-        # Только текст
-        contents = [
-            {
-                "parts": [{"text": prompt}]
+        
+        data = {
+            "contents": contents,
+            "generationConfig": {
+                "temperature": 0.7,
+                "maxOutputTokens": 2048,
             }
-        ]
-    
-    data = {
-        "contents": contents,
-        "generationConfig": {
-            "temperature": 0.7,
-            "maxOutputTokens": 2048,
         }
-    }
-    
-    try:
+        
         response = requests.post(url, json=data, timeout=60)
         response.raise_for_status()
         result = response.json()
@@ -124,10 +128,35 @@ def generate_with_gemini(prompt, image_data=None):
         if 'candidates' in result and result['candidates']:
             return True, result['candidates'][0]['content']['parts'][0]['text']
         else:
-            return False, "Сервис временно недоступен"
+            return False, "Gemini API returned no response"
             
     except Exception as e:
         logger.error(f"Gemini API error: {e}")
+        return False, str(e)
+
+def analyze_with_huggingface(image_data):
+    """Анализ изображения через Hugging Face API"""
+    try:
+        headers = {"Authorization": f"Bearer {HF_API_KEY}"}
+        response = requests.post(HF_API_URL, headers=headers, data=image_data, timeout=60)
+        response.raise_for_status()
+        
+        result = response.json()
+        if isinstance(result, list) and len(result) > 0:
+            # BLIP model returns a list with generated text
+            caption = result[0].get('generated_text', 'Не удалось сгенерировать описание')
+            return True, caption
+        else:
+            return False, "Неожиданный формат ответа от Hugging Face API"
+            
+    except requests.exceptions.RequestException as e:
+        if e.response.status_code == 503:
+            # Model is loading, need to wait
+            return False, "Модель загружается, попробуйте через несколько секунд"
+        logger.error(f"Hugging Face API error: {e}")
+        return False, str(e)
+    except Exception as e:
+        logger.error(f"Unexpected error with Hugging Face: {e}")
         return False, str(e)
 
 # ======================
@@ -159,26 +188,6 @@ def download_image(url, filename):
     except Exception as e:
         logger.error(f"Error downloading image: {e}")
         return None
-
-# ======================
-# Image Generation with g4f
-# ======================
-
-from g4f.client import Client
-
-def generate_image_with_g4f(prompt):
-    """Генерация изображения через g4f с моделью flux"""
-    try:
-        client = Client()
-        response = client.images.generate(
-            model="flux",
-            prompt=prompt,
-            response_format="url"
-        )
-        return True, response.data[0].url
-    except Exception as e:
-        logger.error(f"g4f image generation error: {e}")
-        return False, str(e)
 
 # ======================
 # Flask Routes
@@ -240,20 +249,13 @@ def get_image(image_id):
 
 @app.route('/v1/text/<path:prompt>')
 def generate_text(prompt):
-    """Генерация текста через io.net с fallback на Gemini"""
+    """Генерация текста через Pollinations.ai"""
     start_time = time.time()
     
     try:
         decoded_prompt = urllib.parse.unquote(prompt)
-        messages = [{"role": "user", "content": decoded_prompt}]
-
-        # Сначала пробуем io.net
-        success, result = make_io_net_request(messages)
-
-        if not success:
-            # Если io.net не сработал, пробуем Gemini
-            logger.info("Falling back to Gemini for text generation")
-            success, result = generate_with_gemini(decoded_prompt)
+        
+        success, result = generate_text_with_pollinations(decoded_prompt)
 
         if success:
             return jsonify({
@@ -274,7 +276,7 @@ def generate_text(prompt):
 
 @app.route('/v1/uimg/', methods=['POST'])
 def analyze_image():
-    """Анализ изображения через Gemini"""
+    """Анализ изображения через выбранный сервис"""
     start_time = time.time()
 
     try:
@@ -289,9 +291,11 @@ def analyze_image():
         else:
             return jsonify({'status': 'error', 'message': 'Не предоставлен файл или URL'}), 400
 
-        # Анализируем через Gemini
-        prompt = "Детально опиши что изображено на этой картинке. Опиши цвета, объекты, стиль, настроение и возможный контекст."
-        success, description = generate_with_gemini(prompt, image_data)
+        # Анализируем через выбранный сервис
+        if IMAGE_ANALYSIS_SERVICE == "gemini":
+            success, description = analyze_with_gemini(image_data)
+        else:  # huggingface
+            success, description = analyze_with_huggingface(image_data)
 
         if success:
             return jsonify({
@@ -310,6 +314,34 @@ def analyze_image():
         logger.error(f"Error in analyze_image: {e}")
         return jsonify({'status': 'error', 'message': str(e)}), 500
 
+@app.route('/v1/code/<path:prompt>')
+def generate_code(prompt):
+    """Генерация кода через Pollinations.ai"""
+    start_time = time.time()
+    
+    try:
+        decoded_prompt = urllib.parse.unquote(prompt)
+        code_prompt = f"{decoded_prompt}. Provide ONLY the code without explanations. If libraries are used, include a requirements.txt file with those libraries."
+        
+        success, result = generate_text_with_pollinations(code_prompt)
+
+        if success:
+            return jsonify({
+                'status': 'success',
+                'code': result,
+                'processing_time': f"{time.time() - start_time:.2f}s"
+            })
+        else:
+            return jsonify({
+                'status': 'error',
+                'message': result,
+                'processing_time': f"{time.time() - start_time:.2f}s"
+            }), 500
+
+    except Exception as e:
+        logger.error(f"Unexpected error in generate_code: {e}")
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
 @app.route('/v1/status/')
 def server_status():
     """Статус сервера"""
@@ -318,7 +350,7 @@ def server_status():
         'status': 'running',
         'service': 'AI API Server',
         'images_stored': image_count,
-        'performance': 'high'
+        'image_analysis_service': IMAGE_ANALYSIS_SERVICE
     })
 
 @app.route('/')
@@ -332,64 +364,155 @@ def home():
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>AI API Документация</title>
         <style>
+            @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@300;400;500;600;700&display=swap');
+            
             * {
                 margin: 0;
                 padding: 0;
                 box-sizing: border-box;
             }
             
+            :root {
+                --primary: #8a2be2;
+                --primary-glow: #9d4edd;
+                --secondary: #4a00e0;
+                --dark: #1a1a2e;
+                --darker: #0f0f1a;
+                --light: #e2e2e2;
+                --neon-glow: 0 0 10px var(--primary), 0 0 20px var(--primary), 0 0 30px var(--primary-glow);
+            }
+            
             body {
-                background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
-                color: #ffffff;
-                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                background: linear-gradient(135deg, var(--darker) 0%, var(--dark) 50%, #16213e 100%);
+                color: var(--light);
+                font-family: 'Rajdhani', sans-serif;
                 line-height: 1.6;
                 min-height: 100vh;
                 padding: 20px;
+                overflow-x: hidden;
+            }
+            
+            body::before {
+                content: '';
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background: 
+                    radial-gradient(circle at 20% 80%, rgba(138, 43, 226, 0.1) 0%, transparent 50%),
+                    radial-gradient(circle at 80% 20%, rgba(74, 0, 224, 0.1) 0%, transparent 50%),
+                    radial-gradient(circle at 40% 40%, rgba(157, 78, 221, 0.05) 0%, transparent 50%);
+                pointer-events: none;
+                z-index: -1;
             }
             
             .container {
                 max-width: 1200px;
                 margin: 0 auto;
+                position: relative;
             }
             
             .header {
                 text-align: center;
-                margin-bottom: 50px;
-                padding: 30px 0;
+                margin-bottom: 60px;
+                padding: 40px 0;
+                position: relative;
+            }
+            
+            .header::after {
+                content: '';
+                position: absolute;
+                bottom: 0;
+                left: 50%;
+                transform: translateX(-50%);
+                width: 200px;
+                height: 3px;
+                background: linear-gradient(90deg, transparent, var(--primary), transparent);
+                box-shadow: var(--neon-glow);
             }
             
             .header h1 {
-                font-size: 3rem;
-                background: linear-gradient(45deg, #ff6b6b, #4ecdc4);
+                font-family: 'Orbitron', sans-serif;
+                font-size: 4rem;
+                font-weight: 900;
+                background: linear-gradient(45deg, var(--primary), var(--primary-glow), #00ffff);
                 -webkit-background-clip: text;
                 -webkit-text-fill-color: transparent;
-                margin-bottom: 10px;
+                background-clip: text;
+                margin-bottom: 20px;
+                text-shadow: 0 0 30px rgba(138, 43, 226, 0.3);
+                animation: titleGlow 3s ease-in-out infinite alternate;
+            }
+            
+            @keyframes titleGlow {
+                0% { text-shadow: 0 0 30px rgba(138, 43, 226, 0.3); }
+                100% { text-shadow: 0 0 40px rgba(138, 43, 226, 0.6), 0 0 60px rgba(74, 0, 224, 0.3); }
             }
             
             .header p {
-                font-size: 1.2rem;
+                font-size: 1.3rem;
                 color: #cccccc;
+                font-weight: 300;
+                letter-spacing: 1px;
+            }
+            
+            .service-badge {
+                display: inline-block;
+                background: rgba(138, 43, 226, 0.2);
+                border: 1px solid var(--primary);
+                border-radius: 20px;
+                padding: 8px 20px;
+                margin-top: 15px;
+                font-size: 0.9rem;
+                color: var(--primary-glow);
+                box-shadow: var(--neon-glow);
+                animation: pulse 2s infinite;
+            }
+            
+            @keyframes pulse {
+                0% { box-shadow: 0 0 10px var(--primary), 0 0 20px var(--primary); }
+                50% { box-shadow: 0 0 15px var(--primary), 0 0 30px var(--primary), 0 0 40px var(--primary-glow); }
+                100% { box-shadow: 0 0 10px var(--primary), 0 0 20px var(--primary); }
             }
             
             .endpoints {
                 display: grid;
                 grid-template-columns: repeat(auto-fit, minmax(380px, 1fr));
                 gap: 30px;
-                margin-bottom: 50px;
+                margin-bottom: 60px;
             }
             
             .endpoint-card {
-                background: rgba(40, 40, 40, 0.8);
+                background: rgba(26, 26, 46, 0.8);
                 border-radius: 15px;
                 padding: 30px;
-                border: 1px solid #444;
+                border: 1px solid rgba(138, 43, 226, 0.3);
                 backdrop-filter: blur(10px);
-                transition: transform 0.3s ease, box-shadow 0.3s ease;
+                transition: all 0.3s ease;
+                position: relative;
+                overflow: hidden;
+            }
+            
+            .endpoint-card::before {
+                content: '';
+                position: absolute;
+                top: 0;
+                left: -100%;
+                width: 100%;
+                height: 100%;
+                background: linear-gradient(90deg, transparent, rgba(138, 43, 226, 0.1), transparent);
+                transition: left 0.5s ease;
             }
             
             .endpoint-card:hover {
                 transform: translateY(-5px);
-                box-shadow: 0 15px 30px rgba(0, 0, 0, 0.3);
+                border-color: var(--primary);
+                box-shadow: var(--neon-glow);
+            }
+            
+            .endpoint-card:hover::before {
+                left: 100%;
             }
             
             .endpoint-header {
@@ -399,55 +522,75 @@ def home():
             }
             
             .method {
-                padding: 5px 15px;
+                padding: 6px 16px;
                 border-radius: 20px;
-                font-weight: bold;
+                font-weight: 600;
                 margin-right: 15px;
                 font-size: 0.9rem;
+                font-family: 'Orbitron', sans-serif;
+                letter-spacing: 1px;
             }
             
-            .get { background: #4CAF50; color: white; }
-            .post { background: #FF9800; color: white; }
+            .get { 
+                background: linear-gradient(45deg, #4CAF50, #8bc34a); 
+                color: white; 
+                box-shadow: 0 0 10px rgba(76, 175, 80, 0.3);
+            }
+            
+            .post { 
+                background: linear-gradient(45deg, #FF9800, #ffb74d); 
+                color: white; 
+                box-shadow: 0 0 10px rgba(255, 152, 0, 0.3);
+            }
             
             .endpoint-title {
                 font-size: 1.4rem;
                 color: #ffffff;
+                font-family: 'Orbitron', sans-serif;
+                font-weight: 600;
             }
             
             .endpoint-description {
                 color: #cccccc;
                 margin-bottom: 25px;
                 font-size: 1rem;
+                line-height: 1.6;
             }
             
             .code-tabs {
-                background: #2d2d2d;
-                border-radius: 10px;
+                background: rgba(42, 42, 62, 0.9);
+                border-radius: 12px;
                 overflow: hidden;
                 margin-bottom: 15px;
+                border: 1px solid rgba(138, 43, 226, 0.2);
             }
             
             .tab-buttons {
                 display: flex;
-                background: #3d3d3d;
+                background: rgba(32, 32, 52, 0.9);
                 padding: 10px;
                 gap: 5px;
+                border-bottom: 1px solid rgba(138, 43, 226, 0.2);
             }
             
             .tab-button {
                 padding: 8px 16px;
                 background: transparent;
-                border: none;
-                color: #cccccc;
+                border: 1px solid rgba(138, 43, 226, 0.3);
+                color: #888;
                 cursor: pointer;
-                border-radius: 5px;
+                border-radius: 8px;
                 transition: all 0.3s ease;
                 font-size: 0.9rem;
+                font-family: 'Rajdhani', sans-serif;
+                font-weight: 500;
             }
             
             .tab-button.active {
-                background: #4ecdc4;
-                color: white;
+                background: rgba(138, 43, 226, 0.2);
+                border-color: var(--primary);
+                color: var(--primary-glow);
+                box-shadow: 0 0 10px rgba(138, 43, 226, 0.3);
             }
             
             .tab-content {
@@ -460,11 +603,11 @@ def home():
             }
             
             pre {
-                background: #1e1e1e;
+                background: rgba(15, 15, 26, 0.9);
                 padding: 20px;
                 border-radius: 8px;
                 overflow-x: auto;
-                border: 1px solid #444;
+                border: 1px solid rgba(138, 43, 226, 0.2);
                 color: #f8f8f2;
                 font-family: 'Consolas', 'Monaco', monospace;
                 font-size: 0.9rem;
@@ -472,27 +615,56 @@ def home():
             }
             
             .copy-btn {
-                background: #4ecdc4;
+                background: linear-gradient(45deg, var(--primary), var(--secondary));
                 color: white;
                 border: none;
-                padding: 8px 16px;
-                border-radius: 5px;
+                padding: 10px 20px;
+                border-radius: 8px;
                 cursor: pointer;
                 margin-top: 10px;
-                transition: background 0.3s ease;
+                transition: all 0.3s ease;
+                font-family: 'Rajdhani', sans-serif;
+                font-weight: 600;
                 font-size: 0.9rem;
+                letter-spacing: 1px;
             }
             
             .copy-btn:hover {
-                background: #45b7af;
+                box-shadow: var(--neon-glow);
+                transform: translateY(-2px);
             }
             
             .footer {
                 text-align: center;
-                margin-top: 50px;
-                padding: 30px 0;
+                margin-top: 60px;
+                padding: 40px 0;
                 color: #888;
-                border-top: 1px solid #444;
+                border-top: 1px solid rgba(138, 43, 226, 0.3);
+                position: relative;
+            }
+            
+            .footer::before {
+                content: '';
+                position: absolute;
+                top: -1px;
+                left: 50%;
+                transform: translateX(-50%);
+                width: 100px;
+                height: 2px;
+                background: linear-gradient(90deg, transparent, var(--primary), transparent);
+                box-shadow: var(--neon-glow);
+            }
+            
+            .copyright {
+                font-size: 1rem;
+                margin-bottom: 10px;
+                color: #aaa;
+            }
+            
+            .by-line {
+                font-size: 0.9rem;
+                color: var(--primary-glow);
+                font-style: italic;
             }
             
             @media (max-width: 768px) {
@@ -501,7 +673,11 @@ def home():
                 }
                 
                 .header h1 {
-                    font-size: 2.2rem;
+                    font-size: 2.5rem;
+                }
+                
+                .header p {
+                    font-size: 1.1rem;
                 }
             }
         </style>
@@ -509,8 +685,11 @@ def home():
     <body>
         <div class="container">
             <div class="header">
-                <h1>🤖 AI API Документация</h1>
+                <h1>🤖 AI API SERVER</h1>
                 <p>Мощный API для генерации текстов, изображений и анализа контента</p>
+                <div class="service-badge">
+                    Текст: Pollinations.ai | Изображения: G4F | Анализ: ''' + IMAGE_ANALYSIS_SERVICE.upper() + '''
+                </div>
             </div>
             
             <div class="endpoints">
@@ -521,7 +700,7 @@ def home():
                         <h2 class="endpoint-title">Генерация текста</h2>
                     </div>
                     <p class="endpoint-description">
-                        Генерация текстовых ответов на любые запросы с помощью продвинутых AI-моделей.
+                        Генерация текстовых ответов на любые запросы с помощью Pollinations.ai.
                     </p>
                     
                     <div class="code-tabs">
@@ -700,7 +879,8 @@ req.end();</code></pre>
             </div>
             
             <div class="footer">
-                <p>© 2024 AI API Server | Документация обновлена автоматически</p>
+                <div class="copyright">© 2025 Dark Heavens Corporate. Все права защищены.</div>
+                <div class="by-line">by haker_one</div>
             </div>
         </div>
         
