@@ -6,7 +6,6 @@ import logging
 import os
 import uuid
 import base64
-import io
 
 # ======================
 # Configuration
@@ -22,24 +21,8 @@ IMAGES_DIR = "images"
 os.makedirs(IMAGES_DIR, exist_ok=True)
 
 # API Configuration
-POLLINATIONS_TEXT_URL = "https://text.pollinations.ai/"
-
-# ======================
-# AI Service Selection
-# ======================
-
-# Choose your image analysis service: "gemini" or "huggingface"
-IMAGE_ANALYSIS_SERVICE = "gemini"  # Change to "huggingface" if preferred
-
-# Service Configuration
-if IMAGE_ANALYSIS_SERVICE == "gemini":
-    # Gemini API Configuration
-    GEMINI_API_KEY = "AIzaSyDbIzvvmlN9no8DwkhZAcpyfgDHaEVtlrQ"  # Replace with your actual key
-    GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro-latest:generateContent"
-elif IMAGE_ANALYSIS_SERVICE == "huggingface":
-    # Hugging Face Inference API Configuration
-    HF_API_KEY = "YOUR_HUGGING_FACE_API_KEY_HERE"  # Replace with your actual key
-    HF_API_URL = "https://api-inference.huggingface.co/models/Salesforce/blip-image-captioning-large"
+GEMINI_API_KEY = "AIzaSyDbIzvvmlN9no8DwkhZAcpyfgDHaEVtlrQ"
+GEMINI_API_URL = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={GEMINI_API_KEY}"
 
 # ======================
 # Image Generation with g4f
@@ -58,7 +41,7 @@ def generate_image_with_g4f(prompt):
         )
         return True, response.data[0].url
     except Exception as e:
-        logger.error(f"g4f image generation error: {e}")
+        logger.error(f"Image generation error: {e}")
         return False, str(e)
 
 # ======================
@@ -68,95 +51,57 @@ def generate_image_with_g4f(prompt):
 def generate_text_with_pollinations(prompt):
     """Генерация текста через Pollinations.ai"""
     try:
-        # URL encode the prompt
         encoded_prompt = urllib.parse.quote(prompt)
-        url = f"{POLLINATIONS_TEXT_URL}{encoded_prompt}"
+        url = f"https://text.pollinations.ai/{encoded_prompt}"
         
-        logger.info(f"Making request to Pollinations.ai: {url}")
+        logger.info(f"Making request to text service: {url}")
         response = requests.get(url, timeout=60)
         response.raise_for_status()
         
-        # Pollinations.ai returns plain text, not JSON
         generated_text = response.text.strip()
         return True, generated_text
         
-    except requests.exceptions.RequestException as e:
-        logger.error(f"Pollinations.ai API error: {e}")
-        return False, f"Ошибка соединения с сервисом: {e}"
     except Exception as e:
-        logger.error(f"Unexpected error in text generation: {e}")
-        return False, str(e)
+        logger.error(f"Text API error: {e}")
+        return False, f"Ошибка соединения с сервисом: {e}"
 
 # ======================
-# Image Analysis Services
+# Image Analysis with Gemini
 # ======================
 
 def analyze_with_gemini(image_data):
     """Анализ изображения через Gemini"""
     try:
-        url = f"{GEMINI_API_URL}?key={GEMINI_API_KEY}"
-        
-        # Convert image to base64
         image_base64 = base64.b64encode(image_data).decode('utf-8')
         
-        contents = [
-            {
-                "parts": [
-                    {"text": "Детально опиши что изображено на этой картинке. Опиши цвета, объекты, стиль, настроение и возможный контекст."},
-                    {
-                        "inline_data": {
-                            "mime_type": "image/jpeg",
-                            "data": image_base64
+        payload = {
+            "contents": [
+                {
+                    "parts": [
+                        {"text": "Детально опиши что изображено на этой картинке. Опиши цвета, объекты, стиль, настроение и возможный контекст."},
+                        {
+                            "inline_data": {
+                                "mime_type": "image/jpeg",
+                                "data": image_base64
+                            }
                         }
-                    }
-                ]
-            }
-        ]
-        
-        data = {
-            "contents": contents,
-            "generationConfig": {
-                "temperature": 0.7,
-                "maxOutputTokens": 2048,
-            }
+                    ]
+                }
+            ]
         }
         
-        response = requests.post(url, json=data, timeout=60)
+        response = requests.post(GEMINI_API_URL, json=payload, timeout=60)
         response.raise_for_status()
         result = response.json()
         
         if 'candidates' in result and result['candidates']:
-            return True, result['candidates'][0]['content']['parts'][0]['text']
+            description = result['candidates'][0]['content']['parts'][0]['text']
+            return True, description
         else:
-            return False, "Gemini API returned no response"
+            return False, "Сервис не вернул описание изображения"
             
     except Exception as e:
-        logger.error(f"Gemini API error: {e}")
-        return False, str(e)
-
-def analyze_with_huggingface(image_data):
-    """Анализ изображения через Hugging Face API"""
-    try:
-        headers = {"Authorization": f"Bearer {HF_API_KEY}"}
-        response = requests.post(HF_API_URL, headers=headers, data=image_data, timeout=60)
-        response.raise_for_status()
-        
-        result = response.json()
-        if isinstance(result, list) and len(result) > 0:
-            # BLIP model returns a list with generated text
-            caption = result[0].get('generated_text', 'Не удалось сгенерировать описание')
-            return True, caption
-        else:
-            return False, "Неожиданный формат ответа от Hugging Face API"
-            
-    except requests.exceptions.RequestException as e:
-        if e.response.status_code == 503:
-            # Model is loading, need to wait
-            return False, "Модель загружается, попробуйте через несколько секунд"
-        logger.error(f"Hugging Face API error: {e}")
-        return False, str(e)
-    except Exception as e:
-        logger.error(f"Unexpected error with Hugging Face: {e}")
+        logger.error(f"Vision API error: {e}")
         return False, str(e)
 
 # ======================
@@ -195,18 +140,16 @@ def download_image(url, filename):
 
 @app.route('/v1/image/<path:prompt>')
 def generate_image(prompt):
-    """Генерация изображения через g4f"""
+    """Генерация изображения"""
     start_time = time.time()
 
     try:
         decoded = urllib.parse.unquote(prompt)
         english_prompt = translate_to_english(decoded)
 
-        # Генерируем изображение через g4f
         success, image_url = generate_image_with_g4f(english_prompt)
         
         if success:
-            # Скачиваем изображение на сервер
             image_id = str(uuid.uuid4())[:12]
             filename = f"{image_id}.jpg"
             filepath = download_image(image_url, filename)
@@ -221,7 +164,6 @@ def generate_image(prompt):
                     'image_id': image_id,
                     'image_url': server_url,
                     'original_prompt': decoded,
-                    'english_prompt': english_prompt,
                     'processing_time': f"{time.time() - start_time:.2f}s"
                 })
             else:
@@ -249,12 +191,11 @@ def get_image(image_id):
 
 @app.route('/v1/text/<path:prompt>')
 def generate_text(prompt):
-    """Генерация текста через Pollinations.ai"""
+    """Генерация текста"""
     start_time = time.time()
     
     try:
         decoded_prompt = urllib.parse.unquote(prompt)
-        
         success, result = generate_text_with_pollinations(decoded_prompt)
 
         if success:
@@ -276,11 +217,10 @@ def generate_text(prompt):
 
 @app.route('/v1/uimg/', methods=['POST'])
 def analyze_image():
-    """Анализ изображения через выбранный сервис"""
+    """Анализ изображения"""
     start_time = time.time()
 
     try:
-        # Получаем изображение
         if 'file' in request.files:
             file = request.files['file']
             image_data = file.read()
@@ -291,11 +231,7 @@ def analyze_image():
         else:
             return jsonify({'status': 'error', 'message': 'Не предоставлен файл или URL'}), 400
 
-        # Анализируем через выбранный сервис
-        if IMAGE_ANALYSIS_SERVICE == "gemini":
-            success, description = analyze_with_gemini(image_data)
-        else:  # huggingface
-            success, description = analyze_with_huggingface(image_data)
+        success, description = analyze_with_gemini(image_data)
 
         if success:
             return jsonify({
@@ -316,7 +252,7 @@ def analyze_image():
 
 @app.route('/v1/code/<path:prompt>')
 def generate_code(prompt):
-    """Генерация кода через Pollinations.ai"""
+    """Генерация кода"""
     start_time = time.time()
     
     try:
@@ -348,9 +284,9 @@ def server_status():
     image_count = len([f for f in os.listdir(IMAGES_DIR) if f.endswith('.jpg')])
     return jsonify({
         'status': 'running',
-        'service': 'AI API Server',
-        'images_stored': image_count,
-        'image_analysis_service': IMAGE_ANALYSIS_SERVICE
+        'service': 'DHA AI',
+        'version': 'v8.6',
+        'images_stored': image_count
     })
 
 @app.route('/')
@@ -362,60 +298,31 @@ def home():
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>AI API Документация</title>
+        <title>DHA AI - Документация API</title>
         <style>
-            @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@300;400;500;600;700&display=swap');
-            
             * {
                 margin: 0;
                 padding: 0;
                 box-sizing: border-box;
             }
             
-            :root {
-                --primary: #8a2be2;
-                --primary-glow: #9d4edd;
-                --secondary: #4a00e0;
-                --dark: #1a1a2e;
-                --darker: #0f0f1a;
-                --light: #e2e2e2;
-                --neon-glow: 0 0 10px var(--primary), 0 0 20px var(--primary), 0 0 30px var(--primary-glow);
-            }
-            
             body {
-                background: linear-gradient(135deg, var(--darker) 0%, var(--dark) 50%, #16213e 100%);
-                color: var(--light);
-                font-family: 'Rajdhani', sans-serif;
+                background: linear-gradient(135deg, #0f0f1a 0%, #1a1a2e 50%, #16213e 100%);
+                color: #e2e2e2;
+                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
                 line-height: 1.6;
                 min-height: 100vh;
                 padding: 20px;
-                overflow-x: hidden;
-            }
-            
-            body::before {
-                content: '';
-                position: fixed;
-                top: 0;
-                left: 0;
-                width: 100%;
-                height: 100%;
-                background: 
-                    radial-gradient(circle at 20% 80%, rgba(138, 43, 226, 0.1) 0%, transparent 50%),
-                    radial-gradient(circle at 80% 20%, rgba(74, 0, 224, 0.1) 0%, transparent 50%),
-                    radial-gradient(circle at 40% 40%, rgba(157, 78, 221, 0.05) 0%, transparent 50%);
-                pointer-events: none;
-                z-index: -1;
             }
             
             .container {
                 max-width: 1200px;
                 margin: 0 auto;
-                position: relative;
             }
             
             .header {
                 text-align: center;
-                margin-bottom: 60px;
+                margin-bottom: 50px;
                 padding: 40px 0;
                 position: relative;
             }
@@ -427,60 +334,41 @@ def home():
                 left: 50%;
                 transform: translateX(-50%);
                 width: 200px;
-                height: 3px;
-                background: linear-gradient(90deg, transparent, var(--primary), transparent);
-                box-shadow: var(--neon-glow);
+                height: 2px;
+                background: linear-gradient(90deg, transparent, #8a2be2, transparent);
             }
             
             .header h1 {
-                font-family: 'Orbitron', sans-serif;
-                font-size: 4rem;
-                font-weight: 900;
-                background: linear-gradient(45deg, var(--primary), var(--primary-glow), #00ffff);
+                font-size: 3.5rem;
+                background: linear-gradient(45deg, #8a2be2, #9d4edd, #00ffff);
                 -webkit-background-clip: text;
                 -webkit-text-fill-color: transparent;
                 background-clip: text;
-                margin-bottom: 20px;
-                text-shadow: 0 0 30px rgba(138, 43, 226, 0.3);
-                animation: titleGlow 3s ease-in-out infinite alternate;
+                margin-bottom: 10px;
             }
             
-            @keyframes titleGlow {
-                0% { text-shadow: 0 0 30px rgba(138, 43, 226, 0.3); }
-                100% { text-shadow: 0 0 40px rgba(138, 43, 226, 0.6), 0 0 60px rgba(74, 0, 224, 0.3); }
-            }
-            
-            .header p {
-                font-size: 1.3rem;
+            .header h2 {
+                font-size: 1.5rem;
                 color: #cccccc;
                 font-weight: 300;
-                letter-spacing: 1px;
+                margin-bottom: 20px;
             }
             
-            .service-badge {
+            .version {
                 display: inline-block;
                 background: rgba(138, 43, 226, 0.2);
-                border: 1px solid var(--primary);
-                border-radius: 20px;
+                border: 1px solid #8a2be2;
+                border-radius: 15px;
                 padding: 8px 20px;
-                margin-top: 15px;
+                color: #9d4edd;
                 font-size: 0.9rem;
-                color: var(--primary-glow);
-                box-shadow: var(--neon-glow);
-                animation: pulse 2s infinite;
-            }
-            
-            @keyframes pulse {
-                0% { box-shadow: 0 0 10px var(--primary), 0 0 20px var(--primary); }
-                50% { box-shadow: 0 0 15px var(--primary), 0 0 30px var(--primary), 0 0 40px var(--primary-glow); }
-                100% { box-shadow: 0 0 10px var(--primary), 0 0 20px var(--primary); }
             }
             
             .endpoints {
                 display: grid;
                 grid-template-columns: repeat(auto-fit, minmax(380px, 1fr));
                 gap: 30px;
-                margin-bottom: 60px;
+                margin-bottom: 50px;
             }
             
             .endpoint-card {
@@ -490,29 +378,12 @@ def home():
                 border: 1px solid rgba(138, 43, 226, 0.3);
                 backdrop-filter: blur(10px);
                 transition: all 0.3s ease;
-                position: relative;
-                overflow: hidden;
-            }
-            
-            .endpoint-card::before {
-                content: '';
-                position: absolute;
-                top: 0;
-                left: -100%;
-                width: 100%;
-                height: 100%;
-                background: linear-gradient(90deg, transparent, rgba(138, 43, 226, 0.1), transparent);
-                transition: left 0.5s ease;
             }
             
             .endpoint-card:hover {
                 transform: translateY(-5px);
-                border-color: var(--primary);
-                box-shadow: var(--neon-glow);
-            }
-            
-            .endpoint-card:hover::before {
-                left: 100%;
+                border-color: #8a2be2;
+                box-shadow: 0 10px 30px rgba(138, 43, 226, 0.2);
             }
             
             .endpoint-header {
@@ -524,37 +395,23 @@ def home():
             .method {
                 padding: 6px 16px;
                 border-radius: 20px;
-                font-weight: 600;
+                font-weight: bold;
                 margin-right: 15px;
                 font-size: 0.9rem;
-                font-family: 'Orbitron', sans-serif;
-                letter-spacing: 1px;
             }
             
-            .get { 
-                background: linear-gradient(45deg, #4CAF50, #8bc34a); 
-                color: white; 
-                box-shadow: 0 0 10px rgba(76, 175, 80, 0.3);
-            }
-            
-            .post { 
-                background: linear-gradient(45deg, #FF9800, #ffb74d); 
-                color: white; 
-                box-shadow: 0 0 10px rgba(255, 152, 0, 0.3);
-            }
+            .get { background: #4CAF50; color: white; }
+            .post { background: #FF9800; color: white; }
             
             .endpoint-title {
                 font-size: 1.4rem;
                 color: #ffffff;
-                font-family: 'Orbitron', sans-serif;
-                font-weight: 600;
             }
             
             .endpoint-description {
                 color: #cccccc;
                 margin-bottom: 25px;
                 font-size: 1rem;
-                line-height: 1.6;
             }
             
             .code-tabs {
@@ -582,15 +439,12 @@ def home():
                 border-radius: 8px;
                 transition: all 0.3s ease;
                 font-size: 0.9rem;
-                font-family: 'Rajdhani', sans-serif;
-                font-weight: 500;
             }
             
             .tab-button.active {
                 background: rgba(138, 43, 226, 0.2);
-                border-color: var(--primary);
-                color: var(--primary-glow);
-                box-shadow: 0 0 10px rgba(138, 43, 226, 0.3);
+                border-color: #8a2be2;
+                color: #9d4edd;
             }
             
             .tab-content {
@@ -615,7 +469,7 @@ def home():
             }
             
             .copy-btn {
-                background: linear-gradient(45deg, var(--primary), var(--secondary));
+                background: linear-gradient(45deg, #8a2be2, #4a00e0);
                 color: white;
                 border: none;
                 padding: 10px 20px;
@@ -623,15 +477,11 @@ def home():
                 cursor: pointer;
                 margin-top: 10px;
                 transition: all 0.3s ease;
-                font-family: 'Rajdhani', sans-serif;
-                font-weight: 600;
                 font-size: 0.9rem;
-                letter-spacing: 1px;
             }
             
             .copy-btn:hover {
-                box-shadow: var(--neon-glow);
-                transform: translateY(-2px);
+                box-shadow: 0 0 15px rgba(138, 43, 226, 0.5);
             }
             
             .footer {
@@ -640,19 +490,6 @@ def home():
                 padding: 40px 0;
                 color: #888;
                 border-top: 1px solid rgba(138, 43, 226, 0.3);
-                position: relative;
-            }
-            
-            .footer::before {
-                content: '';
-                position: absolute;
-                top: -1px;
-                left: 50%;
-                transform: translateX(-50%);
-                width: 100px;
-                height: 2px;
-                background: linear-gradient(90deg, transparent, var(--primary), transparent);
-                box-shadow: var(--neon-glow);
             }
             
             .copyright {
@@ -663,8 +500,7 @@ def home():
             
             .by-line {
                 font-size: 0.9rem;
-                color: var(--primary-glow);
-                font-style: italic;
+                color: #9d4edd;
             }
             
             @media (max-width: 768px) {
@@ -675,21 +511,15 @@ def home():
                 .header h1 {
                     font-size: 2.5rem;
                 }
-                
-                .header p {
-                    font-size: 1.1rem;
-                }
             }
         </style>
     </head>
     <body>
         <div class="container">
             <div class="header">
-                <h1>🤖 AI API SERVER</h1>
-                <p>Мощный API для генерации текстов, изображений и анализа контента</p>
-                <div class="service-badge">
-                    Текст: Pollinations.ai | Изображения: G4F | Анализ: ''' + IMAGE_ANALYSIS_SERVICE.upper() + '''
-                </div>
+                <h1>DHA AI</h1>
+                <h2>Мощный API для генерации и анализа контента</h2>
+                <div class="version">Версия v8.6</div>
             </div>
             
             <div class="endpoints">
@@ -700,7 +530,7 @@ def home():
                         <h2 class="endpoint-title">Генерация текста</h2>
                     </div>
                     <p class="endpoint-description">
-                        Генерация текстовых ответов на любые запросы с помощью Pollinations.ai.
+                        Генерация текстовых ответов на любые запросы с помощью продвинутых AI-моделей.
                     </p>
                     
                     <div class="code-tabs">
@@ -886,15 +716,12 @@ req.end();</code></pre>
         
         <script>
             function switchTab(button, tabId) {
-                // Hide all tab contents
                 const tabContents = button.parentElement.parentElement.querySelectorAll('.tab-content');
                 tabContents.forEach(tab => tab.classList.remove('active'));
                 
-                // Remove active class from all buttons
                 const buttons = button.parentElement.querySelectorAll('.tab-button');
                 buttons.forEach(btn => btn.classList.remove('active'));
                 
-                // Show selected tab and activate button
                 document.getElementById(tabId).classList.add('active');
                 button.classList.add('active');
             }
