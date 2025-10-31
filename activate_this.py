@@ -362,7 +362,10 @@ def server_status():
 @app.route('/')
 def home():
     """Главная страница с документацией"""
-    return '''
+    domain = DOMAIN
+    domain_host = DOMAIN.split('//')[1] if '//' in DOMAIN else DOMAIN
+    
+    return f'''
     <!DOCTYPE html>
     <html lang="ru">
     <head>
@@ -370,34 +373,34 @@ def home():
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>DHA AI - Документация API</title>
         <style>
-            * {
+            * {{
                 margin: 0;
                 padding: 0;
                 box-sizing: border-box;
-            }
+            }}
             
-            body {
+            body {{
                 background: linear-gradient(135deg, #0f0f1a 0%, #1a1a2e 50%, #16213e 100%);
                 color: #e2e2e2;
                 font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
                 line-height: 1.6;
                 min-height: 100vh;
                 padding: 20px;
-            }
+            }}
             
-            .container {
+            .container {{
                 max-width: 1200px;
                 margin: 0 auto;
-            }
+            }}
             
-            .header {
+            .header {{
                 text-align: center;
                 margin-bottom: 50px;
                 padding: 40px 0;
                 position: relative;
-            }
+            }}
             
-            .header::after {
+            .header::after {{
                 content: '';
                 position: absolute;
                 bottom: 0;
@@ -406,25 +409,25 @@ def home():
                 width: 200px;
                 height: 2px;
                 background: linear-gradient(90deg, transparent, #8a2be2, transparent);
-            }
+            }}
             
-            .header h1 {
+            .header h1 {{
                 font-size: 3.5rem;
                 background: linear-gradient(45deg, #8a2be2, #9d4edd, #00ffff);
                 -webkit-background-clip: text;
                 -webkit-text-fill-color: transparent;
                 background-clip: text;
                 margin-bottom: 10px;
-            }
+            }}
             
-            .header h2 {
+            .header h2 {{
                 font-size: 1.5rem;
                 color: #cccccc;
                 font-weight: 300;
                 margin-bottom: 20px;
-            }
+            }}
             
-            .version {
+            .version {{
                 display: inline-block;
                 background: rgba(138, 43, 226, 0.2);
                 border: 1px solid #8a2be2;
@@ -432,75 +435,75 @@ def home():
                 padding: 8px 20px;
                 color: #9d4edd;
                 font-size: 0.9rem;
-            }
+            }}
             
-            .endpoints {
+            .endpoints {{
                 display: grid;
                 grid-template-columns: repeat(auto-fit, minmax(380px, 1fr));
                 gap: 30px;
                 margin-bottom: 50px;
-            }
+            }}
             
-            .endpoint-card {
+            .endpoint-card {{
                 background: rgba(26, 26, 46, 0.8);
                 border-radius: 15px;
                 padding: 30px;
                 border: 1px solid rgba(138, 43, 226, 0.3);
                 backdrop-filter: blur(10px);
                 transition: all 0.3s ease;
-            }
+            }}
             
-            .endpoint-card:hover {
+            .endpoint-card:hover {{
                 transform: translateY(-5px);
                 border-color: #8a2be2;
                 box-shadow: 0 10px 30px rgba(138, 43, 226, 0.2);
-            }
+            }}
             
-            .endpoint-header {
+            .endpoint-header {{
                 display: flex;
                 align-items: center;
                 margin-bottom: 20px;
-            }
+            }}
             
-            .method {
+            .method {{
                 padding: 6px 16px;
                 border-radius: 20px;
                 font-weight: bold;
                 margin-right: 15px;
                 font-size: 0.9rem;
-            }
+            }}
             
-            .get { background: #4CAF50; color: white; }
-            .post { background: #FF9800; color: white; }
+            .get {{ background: #4CAF50; color: white; }}
+            .post {{ background: #FF9800; color: white; }}
             
-            .endpoint-title {
+            .endpoint-title {{
                 font-size: 1.4rem;
                 color: #ffffff;
-            }
+            }}
             
-            .endpoint-description {
+            .endpoint-description {{
                 color: #cccccc;
                 margin-bottom: 25px;
                 font-size: 1rem;
-            }
+            }}
             
-            .code-tabs {
+            .code-tabs {{
                 background: rgba(42, 42, 62, 0.9);
                 border-radius: 12px;
                 overflow: hidden;
                 margin-bottom: 15px;
                 border: 1px solid rgba(138, 43, 226, 0.2);
-            }
+            }}
             
-            .tab-buttons {
+            .tab-buttons {{
                 display: flex;
                 background: rgba(32, 32, 52, 0.9);
                 padding: 10px;
                 gap: 5px;
                 border-bottom: 1px solid rgba(138, 43, 226, 0.2);
-            }
+            }}
             
-            .tab-button {
+            .tab-button {{
                 padding: 8px 16px;
                 background: transparent;
                 border: 1px solid rgba(138, 43, 226, 0.3);
@@ -509,24 +512,24 @@ def home():
                 border-radius: 8px;
                 transition: all 0.3s ease;
                 font-size: 0.9rem;
-            }
+            }}
             
-            .tab-button.active {
+            .tab-button.active {{
                 background: rgba(138, 43, 226, 0.2);
                 border-color: #8a2be2;
                 color: #9d4edd;
-            }
+            }}
             
-            .tab-content {
+            .tab-content {{
                 display: none;
                 padding: 20px;
-            }
+            }}
             
-            .tab-content.active {
+            .tab-content.active {{
                 display: block;
-            }
+            }}
             
-            pre {
+            pre {{
                 background: rgba(15, 15, 26, 0.9);
                 padding: 20px;
                 border-radius: 8px;
@@ -536,9 +539,9 @@ def home():
                 font-family: 'Consolas', 'Monaco', monospace;
                 font-size: 0.9rem;
                 line-height: 1.4;
-            }
+            }}
             
-            .copy-btn {
+            .copy-btn {{
                 background: linear-gradient(45deg, #8a2be2, #4a00e0);
                 color: white;
                 border: none;
@@ -548,40 +551,40 @@ def home():
                 margin-top: 10px;
                 transition: all 0.3s ease;
                 font-size: 0.9rem;
-            }
+            }}
             
-            .copy-btn:hover {
+            .copy-btn:hover {{
                 box-shadow: 0 0 15px rgba(138, 43, 226, 0.5);
-            }
+            }}
             
-            .footer {
+            .footer {{
                 text-align: center;
                 margin-top: 60px;
                 padding: 40px 0;
                 color: #888;
                 border-top: 1px solid rgba(138, 43, 226, 0.3);
-            }
+            }}
             
-            .copyright {
+            .copyright {{
                 font-size: 1rem;
                 margin-bottom: 10px;
                 color: #aaa;
-            }
+            }}
             
-            .by-line {
+            .by-line {{
                 font-size: 0.9rem;
                 color: #9d4edd;
-            }
+            }}
             
-            @media (max-width: 768px) {
-                .endpoints {
+            @media (max-width: 768px) {{
+                .endpoints {{
                     grid-template-columns: 1fr;
-                }
+                }}
                 
-                .header h1 {
+                .header h1 {{
                     font-size: 2.5rem;
-                }
-            }
+                }}
+            }}
         </style>
     </head>
     <body>
@@ -614,7 +617,7 @@ def home():
                             <pre><code>import requests
 
 prompt = "Расскажи о искусственном интеллекте"
-url = f"''' + DOMAIN + '''/v1/text/{requests.utils.quote(prompt)}"
+url = f"{domain}/v1/text/{{requests.utils.quote(prompt)}}"
 
 response = requests.get(url)
 print(response.json()['response'])</code></pre>
@@ -623,7 +626,7 @@ print(response.json()['response'])</code></pre>
                         
                         <div id="text-curl" class="tab-content">
                             <pre><code>curl -X GET \\
-  "''' + DOMAIN + '''/v1/text/Расскажи%20о%20искусственном%20интеллекте" \\
+  "{domain}/v1/text/Расскажи%20о%20искусственном%20интеллекте" \\
   -H "Content-Type: application/json"</code></pre>
                             <button class="copy-btn" onclick="copyCode('text-curl')">Копировать код</button>
                         </div>
@@ -633,13 +636,13 @@ print(response.json()['response'])</code></pre>
 
 const prompt = "Расскажи о искусственном интеллекте";
 const encodedPrompt = encodeURIComponent(prompt);
-const url = `''' + DOMAIN + '''/v1/text/${encodedPrompt}`;
+const url = `{domain}/v1/text/${{encodedPrompt}}`;
 
-https.get(url, (resp) => {
+https.get(url, (resp) => {{
     let data = '';
     resp.on('data', (chunk) => data += chunk);
     resp.on('end', () => console.log(JSON.parse(data).response));
-});</code></pre>
+}});</code></pre>
                             <button class="copy-btn" onclick="copyCode('text-node')">Копировать код</button>
                         </div>
                     </div>
@@ -666,18 +669,18 @@ https.get(url, (resp) => {
                             <pre><code>import requests
 
 prompt = "космонавт в стиле поп-арт"
-url = f"''' + DOMAIN + '''/v1/image/{requests.utils.quote(prompt)}"
+url = f"{domain}/v1/image/{{requests.utils.quote(prompt)}}"
 
 response = requests.get(url)
 result = response.json()
-print(f"ID изображения: {result['image_id']}")
-print(f"URL: {result['image_url']}")</code></pre>
+print(f"ID изображения: {{result['image_id']}}")
+print(f"URL: {{result['image_url']}}")</code></pre>
                             <button class="copy-btn" onclick="copyCode('image-python')">Копировать код</button>
                         </div>
                         
                         <div id="image-curl" class="tab-content">
                             <pre><code>curl -X GET \\
-  "''' + DOMAIN + '''/v1/image/космонавт%20в%20стиле%20поп-арт" \\
+  "{domain}/v1/image/космонавт%20в%20стиле%20поп-арт" \\
   -H "Content-Type: application/json"</code></pre>
                             <button class="copy-btn" onclick="copyCode('image-curl')">Копировать код</button>
                         </div>
@@ -687,17 +690,17 @@ print(f"URL: {result['image_url']}")</code></pre>
 
 const prompt = "космонавт в стиле поп-арт";
 const encodedPrompt = encodeURIComponent(prompt);
-const url = `''' + DOMAIN + '''/v1/image/${encodedPrompt}`;
+const url = `{domain}/v1/image/${{encodedPrompt}}`;
 
-https.get(url, (resp) => {
+https.get(url, (resp) => {{
     let data = '';
     resp.on('data', (chunk) => data += chunk);
-    resp.on('end', () => {
+    resp.on('end', () => {{
         const result = JSON.parse(data);
         console.log('ID изображения:', result.image_id);
         console.log('URL:', result.image_url);
-    });
-});</code></pre>
+    }});
+}});</code></pre>
                             <button class="copy-btn" onclick="copyCode('image-node')">Копировать код</button>
                         </div>
                     </div>
@@ -725,13 +728,13 @@ https.get(url, (resp) => {
 
 # Вариант 1: Загрузка файла
 with open('image.jpg', 'rb') as f:
-    files = {'file': f}
-    response = requests.post('''' + DOMAIN + '''/v1/uimg/', files=files)
+    files = {{'file': f}}
+    response = requests.post('{domain}/v1/uimg/', files=files)
     print(response.json()['description'])
 
 # Вариант 2: По URL
-data = {'url': 'https://example.com/image.jpg'}
-response = requests.post('''' + DOMAIN + '''/v1/uimg/', json=data)
+data = {{'url': 'https://example.com/image.jpg'}}
+response = requests.post('{domain}/v1/uimg/', json=data)
 print(response.json()['description'])</code></pre>
                             <button class="copy-btn" onclick="copyCode('analyze-python')">Копировать код</button>
                         </div>
@@ -739,14 +742,14 @@ print(response.json()['description'])</code></pre>
                         <div id="analyze-curl" class="tab-content">
                             <pre><code># Загрузка файла
 curl -X POST \\
-  ''' + DOMAIN + '''/v1/uimg/ \\
+  {domain}/v1/uimg/ \\
   -F "file=@/path/to/image.jpg"
 
 # Использование URL
 curl -X POST \\
-  ''' + DOMAIN + '''/v1/uimg/ \\
+  {domain}/v1/uimg/ \\
   -H "Content-Type: application/json" \\
-  -d '{"url": "https://example.com/image.jpg"}'</code></pre>
+  -d '{{"url": "https://example.com/image.jpg"}}'</code></pre>
                             <button class="copy-btn" onclick="copyCode('analyze-curl')">Копировать код</button>
                         </div>
                         
@@ -756,20 +759,20 @@ const fs = require('fs');
 
 // Загрузка файла
 const data = fs.readFileSync('image.jpg');
-const options = {
-    hostname: '''' + DOMAIN.split('//')[1] + '''',
+const options = {{
+    hostname: '{domain_host}',
     path: '/v1/uimg/',
     method: 'POST',
-    headers: {
+    headers: {{
         'Content-Type': 'multipart/form-data'
-    }
-};
+    }}
+}};
 
-const req = https.request(options, (resp) => {
+const req = https.request(options, (resp) => {{
     let data = '';
     resp.on('data', (chunk) => data += chunk);
     resp.on('end', () => console.log(JSON.parse(data).description));
-});
+}});
 req.write(data);
 req.end();</code></pre>
                             <button class="copy-btn" onclick="copyCode('analyze-node')">Копировать код</button>
@@ -785,7 +788,7 @@ req.end();</code></pre>
         </div>
         
         <script>
-            function switchTab(button, tabId) {
+            function switchTab(button, tabId) {{
                 const tabContents = button.parentElement.parentElement.querySelectorAll('.tab-content');
                 tabContents.forEach(tab => tab.classList.remove('active'));
                 
@@ -794,9 +797,9 @@ req.end();</code></pre>
                 
                 document.getElementById(tabId).classList.add('active');
                 button.classList.add('active');
-            }
+            }}
             
-            function copyCode(tabId) {
+            function copyCode(tabId) {{
                 const codeElement = document.getElementById(tabId).querySelector('code');
                 const textArea = document.createElement('textarea');
                 textArea.value = codeElement.textContent;
@@ -809,7 +812,7 @@ req.end();</code></pre>
                 const originalText = button.textContent;
                 button.textContent = 'Скопировано!';
                 setTimeout(() => button.textContent = originalText, 2000);
-            }
+            }}
         </script>
     </body>
     </html>
