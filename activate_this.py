@@ -27,10 +27,10 @@ logger = logging.getLogger(__name__)
 
 # Environment variables
 GEMINI_API_KEY = os.getenv('GEMINI_API_KEY')
-SERVER_PORT = int(os.getenv('SERVER_PORT', 71203))
+SERVER_PORT = int(os.getenv('SERVER_PORT', 10000))
 SERVER_HOST = os.getenv('SERVER_HOST', '0.0.0.0')
 DOMAIN = os.getenv('DOMAIN', 'https://apiai.darkheavens.ru')
-DEBUG_MODE = os.getenv('DEBUG_MODE', 'True').lower() == 'true'
+DEBUG_MODE = os.getenv('DEBUG_MODE', 'False').lower() == 'true'
 
 # API Configuration
 GEMINI_API_URL = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={GEMINI_API_KEY}"
@@ -84,10 +84,18 @@ unique_generator = UniqueRandomGenerator()
 # Image Generation with g4f
 # ======================
 
-from g4f.client import Client
+try:
+    from g4f.client import Client
+    g4f_available = True
+except ImportError as e:
+    logger.warning(f"g4f not available: {e}")
+    g4f_available = False
 
 def generate_image_with_g4f(prompt):
     """Генерация изображения через g4f с моделью flux"""
+    if not g4f_available:
+        return False, "g4f not available"
+    
     try:
         # Добавляем уникальное число к промпту
         unique_number = unique_generator.generate_unique_number(prompt)
@@ -355,6 +363,7 @@ def server_status():
         'service': 'DHA AI',
         'version': 'v8.6',
         'domain': DOMAIN,
+        'g4f_available': g4f_available,
         'images_stored': image_count,
         'unique_numbers_generated': len(unique_generator.used_numbers)
     })
@@ -822,4 +831,5 @@ if __name__ == '__main__':
     logger.info(f"Starting DHA AI Server v8.6 on {SERVER_HOST}:{SERVER_PORT}")
     logger.info(f"Domain: {DOMAIN}")
     logger.info(f"Debug mode: {DEBUG_MODE}")
+    logger.info(f"g4f available: {g4f_available}")
     app.run(host=SERVER_HOST, port=SERVER_PORT, debug=DEBUG_MODE, threaded=True)
