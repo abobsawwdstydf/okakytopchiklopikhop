@@ -32,8 +32,8 @@ SERVER_HOST = os.getenv('SERVER_HOST', '0.0.0.0')
 DOMAIN = os.getenv('DOMAIN', 'https://apiai.darkheavens.ru')
 DEBUG_MODE = os.getenv('DEBUG_MODE', 'False').lower() == 'true'
 
-# API Configuration
-GEMINI_API_URL = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={GEMINI_API_KEY}"
+# API Configuration - исправленные модели Gemini
+GEMINI_API_URL = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent?key={GEMINI_API_KEY}"
 
 # Folders for files
 IMAGES_DIR = "images"
@@ -178,7 +178,21 @@ def analyze_with_gemini(image_data):
             
     except Exception as e:
         logger.error(f"Vision API error: {e}")
-        return False, str(e)
+        # Попробуем альтернативную модель если основная не работает
+        try:
+            alternative_url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-pro-vision:generateContent?key={GEMINI_API_KEY}"
+            response = requests.post(alternative_url, json=payload, timeout=60)
+            response.raise_for_status()
+            result = response.json()
+            
+            if 'candidates' in result and result['candidates']:
+                description = result['candidates'][0]['content']['parts'][0]['text']
+                return True, description
+            else:
+                return False, "Сервис не вернул описание изображения"
+        except Exception as e2:
+            logger.error(f"Alternative model also failed: {e2}")
+            return False, f"Ошибка анализа изображения: {e}"
 
 # ======================
 # Helper Functions
