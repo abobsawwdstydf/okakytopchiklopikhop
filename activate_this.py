@@ -6,6 +6,9 @@ import logging
 import os
 import uuid
 import base64
+import random
+import hashlib
+from datetime import datetime
 
 # ======================
 # Configuration
@@ -25,6 +28,47 @@ GEMINI_API_KEY = "AIzaSyDbIzvvmlN9no8DwkhZAcpyfgDHaEVtlrQ"
 GEMINI_API_URL = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={GEMINI_API_KEY}"
 
 # ======================
+# Unique Random Number Generator
+# ======================
+
+class UniqueRandomGenerator:
+    def __init__(self):
+        self.used_numbers = set()
+        self.counter = 0
+        
+    def generate_unique_number(self, prompt):
+        """Генерирует уникальное число для промпта"""
+        # Создаем хэш из промпта для детерминированной основы
+        prompt_hash = int(hashlib.md5(prompt.encode()).hexdigest()[:8], 16)
+        
+        # Добавляем текущее время в микросекундах
+        time_component = int(datetime.now().timestamp() * 1000000) % 1000000
+        
+        # Добавляем счетчик запросов
+        self.counter += 1
+        
+        # Комбинируем компоненты
+        base_number = (prompt_hash + time_component + self.counter) % 1000000
+        
+        # Если число уже использовалось, добавляем нули пока не найдем уникальное
+        number = base_number
+        zeros = 0
+        
+        while number in self.used_numbers:
+            zeros += 1
+            number = base_number * (10 ** zeros) + random.randint(0, 9)
+            # Защита от бесконечного цикла
+            if zeros > 10:
+                number = random.randint(1000000, 9999999)
+                break
+                
+        self.used_numbers.add(number)
+        return number
+
+# Глобальный генератор уникальных чисел
+unique_generator = UniqueRandomGenerator()
+
+# ======================
 # Image Generation with g4f
 # ======================
 
@@ -33,10 +77,16 @@ from g4f.client import Client
 def generate_image_with_g4f(prompt):
     """Генерация изображения через g4f с моделью flux"""
     try:
+        # Добавляем уникальное число к промпту
+        unique_number = unique_generator.generate_unique_number(prompt)
+        enhanced_prompt = f"{prompt} {unique_number}"
+        
+        logger.info(f"Enhanced image prompt with unique number: {unique_number}")
+        
         client = Client()
         response = client.images.generate(
             model="flux",
-            prompt=prompt,
+            prompt=enhanced_prompt,
             response_format="url"
         )
         return True, response.data[0].url
@@ -51,7 +101,13 @@ def generate_image_with_g4f(prompt):
 def generate_text_with_pollinations(prompt):
     """Генерация текста через Pollinations.ai"""
     try:
-        encoded_prompt = urllib.parse.quote(prompt)
+        # Добавляем уникальное число к промпту
+        unique_number = unique_generator.generate_unique_number(prompt)
+        enhanced_prompt = f"{prompt} {unique_number}"
+        
+        logger.info(f"Enhanced text prompt with unique number: {unique_number}")
+        
+        encoded_prompt = urllib.parse.quote(enhanced_prompt)
         url = f"https://text.pollinations.ai/{encoded_prompt}"
         
         logger.info(f"Making request to text service: {url}")
@@ -286,7 +342,8 @@ def server_status():
         'status': 'running',
         'service': 'DHA AI',
         'version': 'v8.6',
-        'images_stored': image_count
+        'images_stored': image_count,
+        'unique_numbers_generated': len(unique_generator.used_numbers)
     })
 
 @app.route('/')
