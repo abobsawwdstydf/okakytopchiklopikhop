@@ -9,6 +9,12 @@ import base64
 import random
 import hashlib
 from datetime import datetime
+from dotenv import load_dotenv
+
+# ======================
+# Load Environment Variables
+# ======================
+load_dotenv()
 
 # ======================
 # Configuration
@@ -19,13 +25,19 @@ app = Flask(__name__)
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+# Environment variables
+GEMINI_API_KEY = os.getenv('GEMINI_API_KEY')
+SERVER_PORT = int(os.getenv('SERVER_PORT', 71203))
+SERVER_HOST = os.getenv('SERVER_HOST', '0.0.0.0')
+DOMAIN = os.getenv('DOMAIN', 'https://apiai.darkheavens.ru')
+DEBUG_MODE = os.getenv('DEBUG_MODE', 'True').lower() == 'true'
+
+# API Configuration
+GEMINI_API_URL = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={GEMINI_API_KEY}"
+
 # Folders for files
 IMAGES_DIR = "images"
 os.makedirs(IMAGES_DIR, exist_ok=True)
-
-# API Configuration
-GEMINI_API_KEY = "AIzaSyDbIzvvmlN9no8DwkhZAcpyfgDHaEVtlrQ"
-GEMINI_API_URL = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={GEMINI_API_KEY}"
 
 # ======================
 # Unique Random Number Generator
@@ -110,7 +122,7 @@ def generate_text_with_pollinations(prompt):
         encoded_prompt = urllib.parse.quote(enhanced_prompt)
         url = f"https://text.pollinations.ai/{encoded_prompt}"
         
-        logger.info(f"Making request to text service: {url}")
+        logger.info(f"Making request to text service")
         response = requests.get(url, timeout=60)
         response.raise_for_status()
         
@@ -211,7 +223,7 @@ def generate_image(prompt):
             filepath = download_image(image_url, filename)
 
             if filepath:
-                server_url = f"https://apiai.darkheavens.ru/image/{image_id}"
+                server_url = f"{DOMAIN}/image/{image_id}"
 
                 logger.info(f"Image saved to server: {filename}")
 
@@ -342,6 +354,7 @@ def server_status():
         'status': 'running',
         'service': 'DHA AI',
         'version': 'v8.6',
+        'domain': DOMAIN,
         'images_stored': image_count,
         'unique_numbers_generated': len(unique_generator.used_numbers)
     })
@@ -601,7 +614,7 @@ def home():
                             <pre><code>import requests
 
 prompt = "Расскажи о искусственном интеллекте"
-url = f"https://apiai.darkheavens.ru/v1/text/{requests.utils.quote(prompt)}"
+url = f"''' + DOMAIN + '''/v1/text/{requests.utils.quote(prompt)}"
 
 response = requests.get(url)
 print(response.json()['response'])</code></pre>
@@ -610,7 +623,7 @@ print(response.json()['response'])</code></pre>
                         
                         <div id="text-curl" class="tab-content">
                             <pre><code>curl -X GET \\
-  "https://apiai.darkheavens.ru/v1/text/Расскажи%20о%20искусственном%20интеллекте" \\
+  "''' + DOMAIN + '''/v1/text/Расскажи%20о%20искусственном%20интеллекте" \\
   -H "Content-Type: application/json"</code></pre>
                             <button class="copy-btn" onclick="copyCode('text-curl')">Копировать код</button>
                         </div>
@@ -620,7 +633,7 @@ print(response.json()['response'])</code></pre>
 
 const prompt = "Расскажи о искусственном интеллекте";
 const encodedPrompt = encodeURIComponent(prompt);
-const url = `https://apiai.darkheavens.ru/v1/text/${encodedPrompt}`;
+const url = `''' + DOMAIN + '''/v1/text/${encodedPrompt}`;
 
 https.get(url, (resp) => {
     let data = '';
@@ -653,7 +666,7 @@ https.get(url, (resp) => {
                             <pre><code>import requests
 
 prompt = "космонавт в стиле поп-арт"
-url = f"https://apiai.darkheavens.ru/v1/image/{requests.utils.quote(prompt)}"
+url = f"''' + DOMAIN + '''/v1/image/{requests.utils.quote(prompt)}"
 
 response = requests.get(url)
 result = response.json()
@@ -664,7 +677,7 @@ print(f"URL: {result['image_url']}")</code></pre>
                         
                         <div id="image-curl" class="tab-content">
                             <pre><code>curl -X GET \\
-  "https://apiai.darkheavens.ru/v1/image/космонавт%20в%20стиле%20поп-арт" \\
+  "''' + DOMAIN + '''/v1/image/космонавт%20в%20стиле%20поп-арт" \\
   -H "Content-Type: application/json"</code></pre>
                             <button class="copy-btn" onclick="copyCode('image-curl')">Копировать код</button>
                         </div>
@@ -674,7 +687,7 @@ print(f"URL: {result['image_url']}")</code></pre>
 
 const prompt = "космонавт в стиле поп-арт";
 const encodedPrompt = encodeURIComponent(prompt);
-const url = `https://apiai.darkheavens.ru/v1/image/${encodedPrompt}`;
+const url = `''' + DOMAIN + '''/v1/image/${encodedPrompt}`;
 
 https.get(url, (resp) => {
     let data = '';
@@ -713,12 +726,12 @@ https.get(url, (resp) => {
 # Вариант 1: Загрузка файла
 with open('image.jpg', 'rb') as f:
     files = {'file': f}
-    response = requests.post('https://apiai.darkheavens.ru/v1/uimg/', files=files)
+    response = requests.post('''' + DOMAIN + '''/v1/uimg/', files=files)
     print(response.json()['description'])
 
 # Вариант 2: По URL
 data = {'url': 'https://example.com/image.jpg'}
-response = requests.post('https://apiai.darkheavens.ru/v1/uimg/', json=data)
+response = requests.post('''' + DOMAIN + '''/v1/uimg/', json=data)
 print(response.json()['description'])</code></pre>
                             <button class="copy-btn" onclick="copyCode('analyze-python')">Копировать код</button>
                         </div>
@@ -726,12 +739,12 @@ print(response.json()['description'])</code></pre>
                         <div id="analyze-curl" class="tab-content">
                             <pre><code># Загрузка файла
 curl -X POST \\
-  https://apiai.darkheavens.ru/v1/uimg/ \\
+  ''' + DOMAIN + '''/v1/uimg/ \\
   -F "file=@/path/to/image.jpg"
 
 # Использование URL
 curl -X POST \\
-  https://apiai.darkheavens.ru/v1/uimg/ \\
+  ''' + DOMAIN + '''/v1/uimg/ \\
   -H "Content-Type: application/json" \\
   -d '{"url": "https://example.com/image.jpg"}'</code></pre>
                             <button class="copy-btn" onclick="copyCode('analyze-curl')">Копировать код</button>
@@ -744,7 +757,7 @@ const fs = require('fs');
 // Загрузка файла
 const data = fs.readFileSync('image.jpg');
 const options = {
-    hostname: 'apiai.darkheavens.ru',
+    hostname: '''' + DOMAIN.split('//')[1] + '''',
     path: '/v1/uimg/',
     method: 'POST',
     headers: {
@@ -803,4 +816,7 @@ req.end();</code></pre>
     '''
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=71203, debug=True, threaded=True)
+    logger.info(f"Starting DHA AI Server v8.6 on {SERVER_HOST}:{SERVER_PORT}")
+    logger.info(f"Domain: {DOMAIN}")
+    logger.info(f"Debug mode: {DEBUG_MODE}")
+    app.run(host=SERVER_HOST, port=SERVER_PORT, debug=DEBUG_MODE, threaded=True)
