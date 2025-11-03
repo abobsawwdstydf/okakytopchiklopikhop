@@ -10,6 +10,7 @@ HTML_TEMPLATE = '''
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>🚀 DH Learning - Прокачка в Питоне и Node.js</title>
+    <link rel="icon" type="image/x-icon" href="https://storage.googleapis.com/gpt-engineer-file-uploads/Mmp7STHj41hgutFG4xqKbKlwJ2s1/uploads/1760284886820-19d83c0f-a26a-44ff-9019-ea102827f795-13129162.png">
     <style>
         :root {
             --neon-purple: #bc13fe;
