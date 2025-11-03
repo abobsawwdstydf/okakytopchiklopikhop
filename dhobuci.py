@@ -1,15 +1,6 @@
 from flask import Flask, render_template_string
-import asyncio
-import logging
-from aiogram import Bot, Dispatcher, types
-from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, WebAppInfo
-from aiogram.utils import executor
-import threading
 import os
-import json
-from datetime import datetime, timedelta
 
-# ========== FLASK SITE ==========
 app = Flask(__name__)
 
 HTML_TEMPLATE = '''
@@ -66,7 +57,6 @@ HTML_TEMPLATE = '''
             padding: 0 20px;
         }
 
-        /* Header Styles */
         header {
             background: rgba(10, 10, 10, 0.95);
             backdrop-filter: blur(20px);
@@ -139,7 +129,6 @@ HTML_TEMPLATE = '''
             color: var(--neon-blue);
         }
 
-        /* Hero Section */
         .hero {
             margin-top: 120px;
             text-align: center;
@@ -219,7 +208,6 @@ HTML_TEMPLATE = '''
             box-shadow: 0 0 40px rgba(188, 19, 254, 0.6);
         }
 
-        /* Cards Section */
         .cards-section {
             padding: 6rem 0;
         }
@@ -315,7 +303,6 @@ HTML_TEMPLATE = '''
             font-size: 1.2rem;
         }
 
-        /* Tables Section */
         .tables-section {
             padding: 4rem 0;
         }
@@ -408,7 +395,6 @@ HTML_TEMPLATE = '''
             background: rgba(188, 19, 254, 0.15);
         }
 
-        /* Footer */
         footer {
             background: var(--darker-bg);
             border-top: 3px solid transparent;
@@ -451,7 +437,6 @@ HTML_TEMPLATE = '''
             font-size: 1rem;
         }
 
-        /* Animations */
         @keyframes float {
             0%, 100% { transform: translateY(0px); }
             50% { transform: translateY(-20px); }
@@ -461,7 +446,6 @@ HTML_TEMPLATE = '''
             animation: float 3s ease-in-out infinite;
         }
 
-        /* Responsive */
         @media (max-width: 768px) {
             .nav-container {
                 flex-direction: column;
@@ -515,7 +499,6 @@ HTML_TEMPLATE = '''
 <body>
     <div class="cyber-grid"></div>
     
-    <!-- Header -->
     <header>
         <div class="container">
             <div class="nav-container">
@@ -524,23 +507,20 @@ HTML_TEMPLATE = '''
                     <a href="#python">🐍 Python</a>
                     <a href="#nodejs">💚 Node.js</a>
                     <a href="#comparison">🔥 Сравнение</a>
-                    <a href="#tables">📊 Планы</a>
                     <a href="#telegram">🤖 Бот</a>
                 </nav>
             </div>
         </div>
     </header>
 
-    <!-- Hero Section -->
     <section class="hero">
         <div class="container">
             <h1>🚀 ПРОКАЧАЙСЯ В ПРОГРАММИРОВАНИИ</h1>
-            <p>💥 Полное руководство по изучению Python и Node.js. От полного нуля до профессионального уровня за 6 месяцев. ЕБАШЬ КОД КАК БОГ! ⚡</p>
-            <a href="#courses" class="cta-button">🎯 НАЧАТЬ ЕБАШИТЬ КОД</a>
+            <p>💥 Полное руководство по изучению Python и Node.js. От полного нуля до профессионального уровня за 6 месяцев. ПИСАТЬ КОД КАК БОГ! ⚡</p>
+            <a href="#courses" class="cta-button">🎯 НАЧАТЬ ПИСАТЬ КОД</a>
         </div>
     </section>
 
-    <!-- Telegram Section -->
     <section id="telegram" class="telegram-section">
         <div class="container">
             <h2 class="section-title">🤖 ТЕЛЕГРАМ БОТ</h2>
@@ -554,12 +534,10 @@ HTML_TEMPLATE = '''
         </div>
     </section>
 
-    <!-- Overview Cards -->
     <section id="courses" class="cards-section">
         <div class="container">
             <h2 class="section-title">🎯 ВЫБЕРИ СВОЙ ПЛАН АТАКИ</h2>
             <div class="cards-grid">
-                <!-- Python Cards -->
                 <div class="card">
                     <div class="card-header">
                         <h3 class="card-title">🐍 Python - 7 дней</h3>
@@ -599,7 +577,6 @@ HTML_TEMPLATE = '''
                     </ul>
                 </div>
 
-                <!-- Node.js Cards -->
                 <div class="card">
                     <div class="card-header">
                         <h3 class="card-title">💚 Node.js - 7 дней</h3>
@@ -642,7 +619,6 @@ HTML_TEMPLATE = '''
         </div>
     </section>
 
-    <!-- Comparison Table -->
     <section id="comparison" class="tables-section">
         <div class="container">
             <h2 class="section-title">⚡ СРАВНЕНИЕ ПЛАНОВ АТАКИ</h2>
@@ -678,12 +654,10 @@ HTML_TEMPLATE = '''
         </div>
     </section>
 
-    <!-- Python Learning Tables -->
     <section id="python" class="tables-section">
         <div class="container">
             <h2 class="section-title">🐍 ПОЛНЫЙ ПЛАН АТАКИ PYTHON</h2>
             
-            <!-- Python 7 дней -->
             <div class="table-container">
                 <h3 class="table-title">🐍 Python за 7 дней (ХАРДКОР МОДЕ)</h3>
                 <table class="learning-table">
@@ -733,35 +707,239 @@ HTML_TEMPLATE = '''
                     </tbody>
                 </table>
             </div>
+
+            <div class="table-container">
+                <h3 class="table-title">🐍 Python за 1 месяц (БАЗОВЫЙ УРОВЕНЬ)</h3>
+                <table class="learning-table">
+                    <thead>
+                        <tr>
+                            <th>📅 Неделя</th>
+                            <th>🎯 Основные темы</th>
+                            <th>💥 Практический проект</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>🚀 Неделя 1</td>
+                            <td>Основы языка, структуры данных, функции</td>
+                            <td>Телеграм-бот для уведомлений</td>
+                        </tr>
+                        <tr>
+                            <td>⚡ Неделя 2</td>
+                            <td>ООП: классы, объекты, наследование</td>
+                            <td>Текстовая игра с использованием классов</td>
+                        </tr>
+                        <tr>
+                            <td>🔥 Неделя 3</td>
+                            <td>Работа с данными, API, основы SQL</td>
+                            <td>Скрипт для сбора данных с веб-сайтов</td>
+                        </tr>
+                        <tr>
+                            <td>💥 Неделя 4</td>
+                            <td>Веб-разработка: Flask/FastAPI</td>
+                            <td>Простое REST API для списка задач</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="table-container">
+                <h3 class="table-title">🐍 Python за 6 месяцев (ПРОДВИНУТЫЙ УРОВЕНЬ)</h3>
+                <table class="learning-table">
+                    <thead>
+                        <tr>
+                            <th>📅 Месяц</th>
+                            <th>🎯 Основные темы</th>
+                            <th>💥 Ключевые проекты</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>🚀 1-2</td>
+                            <td>Продвинутые возможности языка, декораторы, генераторы</td>
+                            <td>Скрипты с использованием продвинутых возможностей</td>
+                        </tr>
+                        <tr>
+                            <td>⚡ 3</td>
+                            <td>ООП, алгоритмы, тестирование (pytest)</td>
+                            <td>Реализация алгоритмов, написание тестов</td>
+                        </tr>
+                        <tr>
+                            <td>🔥 4</td>
+                            <td>Веб-разработка: Django, ORM, базы данных</td>
+                            <td>Новостной портал или блог на Django</td>
+                        </tr>
+                        <tr>
+                            <td>💥 5</td>
+                            <td>REST API: DRF, FastAPI, аутентификация</td>
+                            <td>REST API для сайта объявлений</td>
+                        </tr>
+                        <tr>
+                            <td>🎯 6</td>
+                            <td>Docker, развертывание, CI/CD</td>
+                            <td>Завершенный и развернутый проект</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
         </div>
     </section>
 
-    <!-- Footer -->
+    <section id="nodejs" class="tables-section">
+        <div class="container">
+            <h2 class="section-title">💚 ПОЛНЫЙ ПЛАН АТАКИ NODE.JS</h2>
+            
+            <div class="table-container">
+                <h3 class="table-title">💚 Node.js за 7 дней (ХАРДКОР МОДЕ)</h3>
+                <table class="learning-table">
+                    <thead>
+                        <tr>
+                            <th>📅 День</th>
+                            <th>🎯 Основные темы</th>
+                            <th>💥 Практический проект</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>🚀 День 1</td>
+                            <td>Установка Node.js, npm, модульная система</td>
+                            <td>Скрипт с выводом разных типов данных</td>
+                        </tr>
+                        <tr>
+                            <td>⚡ День 2</td>
+                            <td>Асинхронность, работа с файлами</td>
+                            <td>Скрипт для чтения и обработки файлов</td>
+                        </tr>
+                        <tr>
+                            <td>🔥 День 3</td>
+                            <td>Создание веб-сервера (http модуль)</td>
+                            <td>Сервер "Hello World"</td>
+                        </tr>
+                        <tr>
+                            <td>💥 День 4</td>
+                            <td>Express.js, маршрутизация</td>
+                            <td>Простое приложение с маршрутами</td>
+                        </tr>
+                        <tr>
+                            <td>🚀 День 5</td>
+                            <td>Обработка запросов, middleware</td>
+                            <td>Форма с обработкой данных</td>
+                        </tr>
+                        <tr>
+                            <td>⚡ День 6</td>
+                            <td>Базы данных, подключение SQLite/JSON</td>
+                            <td>API для получения данных из БД</td>
+                        </tr>
+                        <tr>
+                            <td>🎯 День 7</td>
+                            <td>Объединение знаний, CRUD API</td>
+                            <td>Бэкенд для блога или списка дел</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="table-container">
+                <h3 class="table-title">💚 Node.js за 1 месяц (БАЗОВЫЙ УРОВЕНЬ)</h3>
+                <table class="learning-table">
+                    <thead>
+                        <tr>
+                            <th>📅 Неделя</th>
+                            <th>🎯 Основные темы</th>
+                            <th>💥 Практический проект</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>🚀 Неделя 1</td>
+                            <td>Основы платформы, событийный цикл, npm</td>
+                            <td>Консольное приложение для работы с файлами</td>
+                        </tr>
+                        <tr>
+                            <td>⚡ Неделя 2</td>
+                            <td>Express.js, REST архитектура, CRUD</td>
+                            <td>REST API для управления сущностями</td>
+                        </tr>
+                        <tr>
+                            <td>🔥 Неделя 3</td>
+                            <td>Базы данных: MongoDB/PostgreSQL, ORM</td>
+                            <td>Интеграция БД в проект</td>
+                        </tr>
+                        <tr>
+                            <td>💥 Неделя 4</td>
+                            <td>Аутентификация, безопасность, JWT</td>
+                            <td>Регистрация и аутентификация в API</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="table-container">
+                <h3 class="table-title">💚 Node.js за 6 месяцев (ПРОДВИНУТЫЙ УРОВЕНЬ)</h3>
+                <table class="learning-table">
+                    <thead>
+                        <tr>
+                            <th>📅 Месяц</th>
+                            <th>🎯 Основные темы</th>
+                            <th>💥 Ключевые проекты</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>🚀 1-2</td>
+                            <td>Event Loop, потоки, кэширование, производительность</td>
+                            <td>Высокопроизводительный скрипт для обработки данных</td>
+                        </tr>
+                        <tr>
+                            <td>⚡ 3</td>
+                            <td>Паттерны проектирования, тестирование (Jest)</td>
+                            <td>Написание тестов для API</td>
+                        </tr>
+                        <tr>
+                            <td>🔥 4</td>
+                            <td>GraphQL, WebSockets (Socket.io)</td>
+                            <td>Чат-приложение в реальном времени</td>
+                        </tr>
+                        <tr>
+                            <td>💥 5</td>
+                            <td>Docker, развертывание, облачные платформы</td>
+                            <td>Развернутый проект в облаке</td>
+                        </tr>
+                        <tr>
+                            <td>🎯 6</td>
+                            <td>Fullstack разработка, безопасность, оптимизация</td>
+                            <td>Полноценное fullstack приложение</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </section>
+
     <footer>
         <div class="container">
             <div class="footer-content">
+                <div class="footer-section">
+                    <h3></h3>
+                    <p></p>
+                </div>
                 <div class="footer-section">
                     <h3>🚀 DH Learning</h3>
                     <p>Современная платформа для обучения программированию. От начинающего до ПРОФЕССИОНАЛА. 💥</p>
                 </div>
                 <div class="footer-section">
-                    <h3>🛠️ Технологии</h3>
-                    <p>Python 🐍 • Node.js 💚 • JavaScript • Flask • Express • Django • React ⚡</p>
-                </div>
-                <div class="footer-section">
-                    <h3>📞 Контакты</h3>
-                    <p>👨‍💻 Разработчик: @haker_one</p>
-                    <p>🛠️ Техподдержка: @dark_heavens_support_bot</p>
+                    <h3></h3>
+                    <p></p>
+                    <p></p>
                 </div>
             </div>
             <div class="copyright">
-                <p>© 2025-2026 Dark Heavens Corporate. Все права защищены. 🚀</p>
+                <p>© 2025-2026 Dark Heavens Corporate. Все права защищены.</p>
             </div>
         </div>
     </footer>
 
     <script>
-        // Smooth scrolling for navigation links
         document.querySelectorAll('a[href^="#"]').forEach(anchor => {
             anchor.addEventListener('click', function (e) {
                 e.preventDefault();
@@ -775,7 +953,6 @@ HTML_TEMPLATE = '''
             });
         });
 
-        // Add animation to cards on scroll
         const observerOptions = {
             threshold: 0.1,
             rootMargin: '0px 0px -50px 0px'
@@ -790,7 +967,6 @@ HTML_TEMPLATE = '''
             });
         }, observerOptions);
 
-        // Observe all cards and tables
         document.querySelectorAll('.card, .table-container').forEach(el => {
             el.style.opacity = '0';
             el.style.transform = 'translateY(30px)';
@@ -798,7 +974,6 @@ HTML_TEMPLATE = '''
             observer.observe(el);
         });
 
-        // Add glow effect to header on scroll
         window.addEventListener('scroll', () => {
             const header = document.querySelector('header');
             if (window.scrollY > 100) {
@@ -808,7 +983,6 @@ HTML_TEMPLATE = '''
             }
         });
 
-        // Cyber effects
         document.addEventListener('mousemove', (e) => {
             const grid = document.querySelector('.cyber-grid');
             const x = e.clientX / window.innerWidth;
@@ -825,340 +999,6 @@ HTML_TEMPLATE = '''
 def index():
     return render_template_string(HTML_TEMPLATE)
 
-# ========== TELEGRAM BOT ==========
-# Конфигурация бота
-BOT_TOKEN = "8524355119:AAExHf5r0GZQxXiB58S95nOaqdS9DfyfYWI"  # Замени на свой токен
-ADMIN_ID = 7215210750  # Замени на свой ID
-
-# Хранилище данных пользователей
-user_data = {}
-
-# Планы обучения с ежедневными заданиями
-learning_plans = {
-    "python_7": {
-        "name": "🐍 Python за 7 дней",
-        "days": {
-            1: "🚀 ДЕНЬ 1: Установи Python и напиши первый скрипт! 💥\n\nЗадание:\n1. Установи Python с python.org\n2. Напиши скрипт который выводит твое имя и возраст\n3. Запусти его через терминал\n\n⚡ ДЕЛАЙ СЕЙЧАС! Не откладывай!",
-            2: "🔥 ДЕНЬ 2: Условия и логика! 🧠\n\nЗадание:\n1. Напиши скрипт который проверяет твой возраст\n2. Если больше 18 - 'Доступ разрешен', иначе - 'Доступ запрещен'\n3. Добавь проверку на пустой ввод\n\n🎯 ВПЕРЕД КОДИТЬ!",
-            3: "⚡ ДЕНЬ 3: Циклы и списки! 🔄\n\nЗадание:\n1. Создай список из 5 чисел\n2. Напиши цикл который выводит каждый элемент\n3. Сделай сумму всех чисел в списке\n\n💥 РАБОТАЙ БЕЗ ОСТАНОВКИ!",
-            4: "💫 ДЕНЬ 4: Функции - твой новый суперсила! 🦸\n\nЗадание:\n1. Создай функцию для расчета площади круга\n2. Функцию для проверки четности числа\n3. Вызови их с разными параметрами\n\n🚀 КОДИМ ДАЛЬШЕ!",
-            5: "🎯 ДЕНЬ 5: Работа с файлами! 📁\n\nЗадание:\n1. Создай текстовый файл\n2. Запиши в него несколько строк\n3. Прочитай и выведи содержимое\n\n⚡ НЕ ОСТАНАВЛИВАЙСЯ!",
-            6: "🚀 ДЕНЬ 6: Библиотеки и API! 🌐\n\nЗадание:\n1. Установи библиотеку requests через pip\n2. Сделай запрос к какому-нибудь публичному API\n3. Обработай и выведи результат\n\n💥 ТЫ УЖЕ ПРОГРАММИСТ!",
-            7: "🎉 ДЕНЬ 7: ФИНАЛ! Завершающий проект! 🏆\n\nЗадание:\n1. Создай простой телеграм бот\n2. Или напиши парсер сайта\n3. Или сделай автоматизацию для себя\n\n🔥 ТЫ СДЕЛАЛ ЭТО! МОЛОДЕЦ!"
-        }
-    },
-    "nodejs_7": {
-        "name": "💚 Node.js за 7 дней",
-        "days": {
-            1: "🚀 ДЕНЬ 1: Установка и первый сервер! 💥\n\nЗадание:\n1. Установи Node.js с nodejs.org\n2. Создай файл server.js\n3. Запусти простой HTTP сервер\n\n⚡ ВПЕРЕД К СЕРВЕРАМ!",
-            2: "🔥 ДЕНЬ 2: Модули и NPM! 📦\n\nЗадание:\n1. Изучи модульную систему\n2. Установи через npm библиотеку express\n3. Создай простой роут\n\n🎯 КОДИ СЕРВЕРА!",
-            3: "⚡ ДЕНЬ 3: Express.js - твой фреймворк! 🛠️\n\nЗадание:\n1. Настрой базовое Express приложение\n2. Создай несколько GET роутов\n3. Добавь простой HTML шаблон\n\n💥 СЕРВЕРА ЖДУТ!",
-            4: "💫 ДЕНЬ 4: Middleware и POST запросы! 📨\n\nЗадание:\n1. Добавь middleware для логирования\n2. Создай форму и обрабатывай POST\n3. Научись работать с body парсером\n\n🚀 ДАЛЬШЕ В БЭКЕНД!",
-            5: "🎯 ДЕНЬ 5: Базы данных! 🗄️\n\nЗадание:\n1. Подключи MongoDB или SQLite\n2. Создай простую модель\n3. Реализуй CRUD операции\n\n⚡ БД ТЕБЯ ЖДУТ!",
-            6: "🚀 ДЕНЬ 6: API и аутентификация! 🔐\n\nЗадание:\n1. Создай REST API\n2. Добавь JWT аутентификацию\n3. Сделай защищенные роуты\n\n💥 СТАНЬ ФУЛЛСТЕК!",
-            7: "🎉 ДЕНЬ 7: ДЕПЛОЙ И ФИНАЛ! ☁️\n\nЗадание:\n1. Задеплой приложение на Heroku\n2. Настрой домен и SSL\n3. Протестируй все endpoints\n\n🔥 ТЫ СТАЛ NODE.js РАЗРАБОТЧИКОМ!"
-        }
-    }
-}
-
-# Инициализация бота
-bot = Bot(token=BOT_TOKEN)
-dp = Dispatcher(bot)
-
-# Клавиатуры
-def get_main_keyboard():
-    keyboard = InlineKeyboardMarkup(row_width=2)
-    keyboard.add(
-        InlineKeyboardButton("🐍 Python курсы", callback_data="python_courses"),
-        InlineKeyboardButton("💚 Node.js курсы", callback_data="nodejs_courses")
-    )
-    keyboard.add(
-        InlineKeyboardButton("👨‍💻 Разработчик", url="https://t.me/haker_one"),
-        InlineKeyboardButton("🛠️ Техподдержка", url="https://t.me/dark_heavens_support_bot")
-    )
-    keyboard.add(
-        InlineKeyboardButton("🎯 Мой прогресс", callback_data="my_progress"),
-        InlineKeyboardButton("🚀 Сегодняшнее задание", callback_data="todays_task")
-    )
-    return keyboard
-
-def get_python_courses_keyboard():
-    keyboard = InlineKeyboardMarkup()
-    keyboard.add(InlineKeyboardButton("🐍 Python за 7 дней", callback_data="start_python_7"))
-    keyboard.add(InlineKeyboardButton("🐍 Python за 1 месяц", callback_data="start_python_30"))
-    keyboard.add(InlineKeyboardButton("🐍 Python за 6 месяцев", callback_data="start_python_180"))
-    keyboard.add(InlineKeyboardButton("🔙 Назад", callback_data="back_to_main"))
-    return keyboard
-
-def get_nodejs_courses_keyboard():
-    keyboard = InlineKeyboardMarkup()
-    keyboard.add(InlineKeyboardButton("💚 Node.js за 7 дней", callback_data="start_nodejs_7"))
-    keyboard.add(InlineKeyboardButton("💚 Node.js за 1 месяц", callback_data="start_nodejs_30"))
-    keyboard.add(InlineKeyboardButton("💚 Node.js за 6 месяцев", callback_data="start_nodejs_180"))
-    keyboard.add(InlineKeyboardButton("🔙 Назад", callback_data="back_to_main"))
-    return keyboard
-
-def get_day_navigation_keyboard(user_id, course_type):
-    user = user_data.get(user_id, {})
-    current_day = user.get('current_day', 1)
-    total_days = 7  # Для демо используем 7 дней
-
-    keyboard = InlineKeyboardMarkup()
-    if current_day > 1:
-        keyboard.add(InlineKeyboardButton("⬅️ Предыдущий день", callback_data=f"prev_day_{course_type}"))
-
-    if current_day < total_days:
-        keyboard.add(InlineKeyboardButton("➡️ Следующий день", callback_data=f"next_day_{course_type}"))
-    else:
-        keyboard.add(InlineKeyboardButton("🎉 Завершить курс!", callback_data="finish_course"))
-
-    keyboard.add(InlineKeyboardButton("🔙 Главное меню", callback_data="back_to_main"))
-    return keyboard
-
-# Обработчики сообщений
-@dp.message_handler(commands=['start'])
-async def send_welcome(message: types.Message):
-    user_id = message.from_user.id
-    if user_id not in user_data:
-        user_data[user_id] = {
-            'current_course': None,
-            'current_day': 1,
-            'start_date': datetime.now().strftime("%Y-%m-%d"),
-            'completed_days': []
-        }
-
-    welcome_text = """
-🚀 ДОБРО ПОЖАЛОВАТЬ В DH LEARNING! 💥
-
-Я твой личный тренер по программированию! 
-Каждый день я буду ЕБАШИТЬ тебя новыми заданиями! ⚡
-
-🎯 Выбери курс и начинай ЕБАШИТЬ код прямо сейчас!
-💥 Никаких отсрочек! Только ХАРДКОР! 🚀
-    """
-
-    await message.answer(welcome_text, reply_markup=get_main_keyboard())
-
-@dp.message_handler(commands=['today'])
-async def send_todays_task(message: types.Message):
-    user_id = message.from_user.id
-    user = user_data.get(user_id, {})
-
-    if not user.get('current_course'):
-        await message.answer("⚠️ Сначала выбери курс в главном меню! 🎯")
-        return
-
-    course_type = user['current_course']
-    current_day = user['current_day']
-
-    if course_type in learning_plans and current_day in learning_plans[course_type]['days']:
-        task = learning_plans[course_type]['days'][current_day]
-        await message.answer(f"🎯 ЗАДАНИЕ НА СЕГОДНЯ:\n\n{task}",
-                             reply_markup=get_day_navigation_keyboard(user_id, course_type))
-    else:
-        await message.answer("🎉 Ты завершил все задания курса! МОЛОДЕЦ! 🏆")
-
-@dp.callback_query_handler(lambda c: c.data == 'python_courses')
-async def python_courses(callback_query: types.CallbackQuery):
-    await bot.answer_callback_query(callback_query.id)
-    await bot.send_message(callback_query.from_user.id,
-                           "🐍 ВЫБЕРИ СВОЙ PYTHON КУРС:\n\n"
-                           "⚡ 7 дней - экспресс прокачка\n"
-                           "🔥 1 месяц - базовая подготовка\n"
-                           "🎯 6 месяцев - профессиональный уровень",
-                           reply_markup=get_python_courses_keyboard())
-
-@dp.callback_query_handler(lambda c: c.data == 'nodejs_courses')
-async def nodejs_courses(callback_query: types.CallbackQuery):
-    await bot.answer_callback_query(callback_query.id)
-    await bot.send_message(callback_query.from_user.id,
-                           "💚 ВЫБЕРИ СВОЙ NODE.JS КУРС:\n\n"
-                           "⚡ 7 дней - экспресс прокачка\n"
-                           "🔥 1 месяц - базовая подготовка\n"
-                           "🎯 6 месяцев - профессиональный уровень",
-                           reply_markup=get_nodejs_courses_keyboard())
-
-@dp.callback_query_handler(lambda c: c.data.startswith('start_'))
-async def start_course(callback_query: types.CallbackQuery):
-    await bot.answer_callback_query(callback_query.id)
-    user_id = callback_query.from_user.id
-    course_type = callback_query.data.replace('start_', '')
-
-    user_data[user_id]['current_course'] = course_type
-    user_data[user_id]['current_day'] = 1
-    user_data[user_id]['start_date'] = datetime.now().strftime("%Y-%m-%d")
-
-    course_name = learning_plans.get(course_type, {}).get('name', 'курс')
-
-    await bot.send_message(user_id,
-                           f"🚀 ОТЛИЧНЫЙ ВЫБОР! НАЧИНАЕМ {course_name.upper()}! 💥\n\n"
-                           f"⚡ С сегодняшнего дня я буду ЕБАШИТЬ тебя заданиями!\n"
-                           f"🔥 Никаких поблажек! Работаем на результат! 🎯\n\n"
-                           f"ПЕРВОЕ ЗАДАНИЕ ЖДЕТ ТЕБЯ НИЖЕ! ⬇️")
-
-    # Отправляем первое задание
-    if course_type in learning_plans:
-        first_task = learning_plans[course_type]['days'][1]
-        await bot.send_message(user_id, first_task,
-                               reply_markup=get_day_navigation_keyboard(user_id, course_type))
-
-@dp.callback_query_handler(lambda c: c.data.startswith('next_day_'))
-async def next_day(callback_query: types.CallbackQuery):
-    await bot.answer_callback_query(callback_query.id)
-    user_id = callback_query.from_user.id
-    course_type = callback_query.data.replace('next_day_', '')
-
-    user = user_data.get(user_id, {})
-    current_day = user.get('current_day', 1)
-
-    if current_day < 7:  # Максимум 7 дней для демо
-        user_data[user_id]['current_day'] = current_day + 1
-        user_data[user_id]['completed_days'] = user.get('completed_days', []) + [current_day]
-
-        next_task = learning_plans[course_type]['days'][current_day + 1]
-
-        motivation_texts = [
-            "🚀 ОТЛИЧНО ПРОДВИГАЕШЬСЯ! ДАВАЙ ДАЛЬШЕ! 💥",
-            "🔥 ТЫ НЕОСТАНОВИМ! ПРОДОЛЖАЕМ ЕБАШИТЬ! ⚡",
-            "🎯 ВПЕРЕД К ПОБЕДЕ! СЛЕДУЮЩЕЕ ЗАДАНИЕ! 🚀",
-            "💫 ТЫ РВЕШЬ! НЕ СБАВЛЯЙ ТЕМП! 🔥"
-        ]
-
-        import random
-        motivation = random.choice(motivation_texts)
-
-        await bot.send_message(user_id, f"{motivation}\n\n{next_task}",
-                               reply_markup=get_day_navigation_keyboard(user_id, course_type))
-
-@dp.callback_query_handler(lambda c: c.data.startswith('prev_day_'))
-async def prev_day(callback_query: types.CallbackQuery):
-    await bot.answer_callback_query(callback_query.id)
-    user_id = callback_query.from_user.id
-    course_type = callback_query.data.replace('prev_day_', '')
-
-    user = user_data.get(user_id, {})
-    current_day = user.get('current_day', 1)
-
-    if current_day > 1:
-        user_data[user_id]['current_day'] = current_day - 1
-        prev_task = learning_plans[course_type]['days'][current_day - 1]
-
-        await bot.send_message(user_id, f"🔄 ПОВТОРЕНИЕ - МАТЬ УЧЕНИЯ! 🔄\n\n{prev_task}",
-                               reply_markup=get_day_navigation_keyboard(user_id, course_type))
-
-@dp.callback_query_handler(lambda c: c.data == 'todays_task')
-async def todays_task(callback_query: types.CallbackQuery):
-    await send_todays_task(callback_query.message)
-
-@dp.callback_query_handler(lambda c: c.data == 'my_progress')
-async def my_progress(callback_query: types.CallbackQuery):
-    await bot.answer_callback_query(callback_query.id)
-    user_id = callback_query.from_user.id
-    user = user_data.get(user_id, {})
-
-    if not user.get('current_course'):
-        await bot.send_message(user_id, "⚠️ Ты еще не начал ни одного курса! Выбери курс в главном меню! 🎯")
-        return
-
-    course_type = user['current_course']
-    current_day = user.get('current_day', 1)
-    completed_days = user.get('completed_days', [])
-    total_days = 7  # Для демо
-
-    progress = len(completed_days)
-    percentage = (progress / total_days) * 100
-
-    progress_bar = "🟢" * progress + "⚪" * (total_days - progress)
-
-    course_name = learning_plans.get(course_type, {}).get('name', 'курс')
-
-    progress_text = f"""
-📊 ТВОЙ ПРОГРЕСС В {course_name.upper()}:
-
-{progress_bar}
-🎯 Пройдено дней: {progress}/{total_days}
-📈 Прогресс: {percentage:.1f}%
-🚀 Текущий день: {current_day}
-💪 Начал: {user.get('start_date', 'Неизвестно')}
-
-⚡ ПРОДОЛЖАЕМ ЕБАШИТЬ! НИКАКИХ ПОБЛАЖЕК! 🔥
-    """
-
-    await bot.send_message(user_id, progress_text)
-
-@dp.callback_query_handler(lambda c: c.data == 'finish_course')
-async def finish_course(callback_query: types.CallbackQuery):
-    await bot.answer_callback_query(callback_query.id)
-    user_id = callback_query.from_user.id
-    user = user_data.get(user_id, {})
-
-    course_type = user.get('current_course')
-    course_name = learning_plans.get(course_type, {}).get('name', 'курс')
-
-    await bot.send_message(user_id,
-                           f"🎉 БЛЯДЬ, ТЫ СДЕЛАЛ ЭТО! 🏆\n\n"
-                           f"Ты завершил {course_name}! Это офигенно! 💥\n"
-                           f"Ты доказал что можешь ЕБАШИТЬ код как настоящий программист! 🚀\n\n"
-                           f"⚡ Что дальше?\n"
-                           f"• Начни новый курс\n"
-                           f"• Создай свой проект\n"
-                           f"• Ищи работу или заказы\n\n"
-                           f"Гордимся тобой! Ты крут! 🔥",
-                           reply_markup=get_main_keyboard())
-
-    # Сбрасываем курс
-    user_data[user_id]['current_course'] = None
-    user_data[user_id]['current_day'] = 1
-
-@dp.callback_query_handler(lambda c: c.data == 'back_to_main')
-async def back_to_main(callback_query: types.CallbackQuery):
-    await bot.answer_callback_query(callback_query.id)
-    await send_welcome(callback_query.message)
-
-# Функция для отправки ежедневных напоминаний
-async def send_daily_reminders():
-    while True:
-        now = datetime.now()
-        if now.hour == 9 and now.minute == 0:  # 9:00 утра
-            for user_id, user_data in user_data.items():
-                if user_data.get('current_course'):
-                    try:
-                        await bot.send_message(
-                            user_id,
-                            "🚀 ДОБРОЕ УТРО! ВРЕМЯ ЕБАШИТЬ КОД! 💥\n\n"
-                            "⚡ Не проебывай день! Задание ждет тебя!\n"
-                            "🎯 Используй /today чтобы получить задание\n\n"
-                            "ДАВАЙ НАХУЙ, РАБОТАЙ! 🔥"
-                        )
-                    except Exception as e:
-                        print(f"Не удалось отправить напоминание пользователю {user_id}: {e}")
-
-            # Ждем 24 часа до следующей проверки
-            await asyncio.sleep(60 * 60 * 24)
-        else:
-            await asyncio.sleep(60)  # Проверяем каждую минуту
-
-# Запуск бота в отдельном потоке
-def run_bot():
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-
-    # Запускаем напоминания в фоне
-    loop.create_task(send_daily_reminders())
-
-    # Запускаем бота
-    executor.start_polling(dp, skip_updates=True)
-
-# Запуск Flask и бота
 if __name__ == '__main__':
-    print("🚀 Запускаю DH Learning...")
-    print("💥 Сайт: http://localhost:5000")
-    print("🤖 Бот: запускается...")
-
-    # Запускаем бота в отдельном потоке
-    import threading
-    bot_thread = threading.Thread(target=run_bot, daemon=True)
-    bot_thread.start()
-
-    # Запускаем Flask
+    print("🚀 Запускаю DH Learning Website...")
     app.run(host='0.0.0.0', port=5000, debug=False)
